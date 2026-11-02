@@ -1,0 +1,31 @@
+# LaTeX build files
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.dvi
+*.xdv
+
+# Bibliography (BibTeX / biblatex)
+*.bbl
+*.blg
+*.bcf
+*.run.xml
+
+# Beamer slides
+*.nav
+*.snm
+*.vrb
+
+# Build folder (if you set LaTeX Workshop's outDir)
+build/
+
+# OS / editor clutter
+.DS_Store
+.vscode/
