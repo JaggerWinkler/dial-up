@@ -29,3 +29,5 @@ build/
 # OS / editor clutter
 .DS_Store
 .vscode/
+
+.idea/

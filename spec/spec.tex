@@ -34,13 +34,15 @@ This project implements layers one and two of the OSI model, the physical layer 
 The physical layer is responsible for transmitting raw bits over a communication channel, 
 while the data link layer is responsible for providing reliable data transfer between two devices on the same network.
 
+This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
+
 \section{Pipeline}
 
 The project is split into two layers, the physical layer and the data link layer. The data link layer is Responsible for framing, addressing, and detecting corrupted frames,
 similar to its role in the Ethernet protocol. The physical layer is responsibe for modulating the data into sound and demodulating the sound back into data, alongside
 a large amount of error correction.
 
-\begin{figure}[htbp]
+\begin{figure}[H]
 \centering
 \resizebox{\linewidth}{!}{%
 \begin{tikzpicture}[
@@ -54,7 +56,7 @@ a large amount of error correction.
  
 % ---------------- Transmit (top to bottom) ----------------
 \node[block] (t1) {Payload};
-\node[block, below=of t1] (t2) {Add header (dst, src, len, seq)};
+\node[block, below=of t1] (t2) {Add header (dst, src, len)};
 \node[block, below=of t2] (t3) {Append CRC};
 \node[block, below=1.1cm of t3] (t4) {Reed--Solomon encode};
 \node[block, below=of t4] (t5) {Interleave};
@@ -91,7 +93,7 @@ a large amount of error correction.
  
 % CRC failure branch
 \draw[arr, dashed] (r3.east) -- ++(1.0,0)
-  node[right, font=\footnotesize, align=left] {fail: drop,\\sender retransmits};
+  node[right, font=\footnotesize, align=left] {fail: drop};
  
 % ---------------- Column headers ----------------
 \node[font=\bfseries, above=0.6cm of t1] {Transmit};
@@ -113,14 +115,37 @@ a large amount of error correction.
 \label{fig:acoustic-pipeline}
 \end{figure}
 
-\subsection{Layer 2 Transmit}
+\subsection{Layer 2 Transmitter}
+The intended payload is passed into the data link layer. The layer needs to be given a destination address, a source address, and calculates the length of the payload. 
+The data link layer then appends a CRC to the end of the frame, which is used to detect errors in the transmitted frame. The frame is then passed to the physical 
+layer for transmission. This CRC is identical to that outlined in the Ethernet specification, and is a 32-bit CRC using the polynomial $x^{32} + x^{26} + x^{23} + x^{22} 
++ x^{16} + x^{12} + x^{11} + x^{10} + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1$.
 
-\subsection{Layer 1 Transmit}
+\subsection{Layer 1 Transmitter}
+The physical layer is a more computationally and conceptually heavy layer. The physical layer first encodes the frame using a Reed-Solomon code. A $RS(n, k)$ code adds $n - k$
+parity bytes and can correct up to $(n - k)/2$ byte errors per block. Next, the bitstream is interleaved, where bytes are rearranged to make the 
+data more resilient to burst errors. Noise events, such as a door shutting, cause a burst of errors, which is difficult to correct. Interleaving spreads the 
+noise across Reed-Solomon codewords, meaning that the Reed-Solomon code is able to correct the errors. The interleaved bitstream is then convolutionally encoded, 
+which is a type of error-correcting code that adds redundancy to the data. The purpose of this becomes clearer during the decode, where a Viterbi decoder is 
+used to decode the convolutionally encoded data. Next, the bitstream is modulated using a frequency-shift keying (FSK) modulation scheme, where a 0 is represented by 
+a lower frequency tone and a 1 is represented by a higher frequency tone. Finally, a preamble is appended to the front of the frame, which is a known sequence of bits
+that is used to synchronize the receiver to the upcoming transmission frame.
 
-\subsection{Layer 1 Receive}
+This generated audio file is then passed to the speaker, which plays a noise for the receiver to pick up.
+\subsection{Layer 1 Receiver}
+The physical layer receiver is responsible for demodulating the received audio signal back into a bitstream. The receiver first detects the preamble, 
+which is used to synchronize the receiver to the incoming frame. Once synchronized, the receiver demodulates the FSK signal back into a bitstream. 
+The demodulated bitstream is then passed through a Viterbi decoder, which decodes the convolutionally encoded data. Next, the bitstream is deinterleaved, 
+reversing the interleaving process performed by the transmitter. Finally, the Reed-Solomon decoder corrects any errors in the received frame, and passes it to the data link layer. 
 
-\subsection{Layer 2 Receive}
+\subsection{Layer 2 Receiver}
+The data link layer receiver is responsible for checking the CRC of the received frame. If the CRC check fails, the frame is dropped. If the CRC check passes, the data link layer 
+extracts the payload from the frame, stripping the header and delivers it to the network layer.
 
+\section{Specifics}
+
+\subsection{Payload}
+The payload is the actual data being transmitted over the acoustic channel. The payload can be any arbitrary data, 
 \section{Acknowledgements}
 Figures were generated with the help of Claude Opus 5.5, by describing every component of the figure in detail. The figure was then refined and polished by the authors.
 \end{document}
