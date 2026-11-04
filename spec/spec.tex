@@ -17,7 +17,6 @@
 
 % Useful packages
 \usepackage{amsmath}
-\usepackage{graphicx}
 \usepackage[colorlinks=true, allcolors=blue]{hyperref}
 
 \title{Dial-Up: Networking Over Sound}
@@ -31,16 +30,15 @@
 \section{Introduction}
 The goal of this project is to design and implement a networking protocol that can transmit data over sound. 
 This project implements layers one and two of the OSI model, the physical layer and the data link layer. 
-The physical layer is responsible for transmitting raw bits over a communication channel, 
-while the data link layer is responsible for providing reliable data transfer between two devices on the same network.
+The physical layer is responsible for modulating data into sound and demodulating sound back into data, alongside a large amount of error correction,
+while the data link layer is responsible for framing, addressing, and error detection, similar to its role in the Ethernet protocol.
+
+Dial-Up is designed to automatically connect devices.
+
 
 This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
 
 \section{Pipeline}
-
-The project is split into two layers, the physical layer and the data link layer. The data link layer is Responsible for framing, addressing, and detecting corrupted frames,
-similar to its role in the Ethernet protocol. The physical layer is responsibe for modulating the data into sound and demodulating the sound back into data, alongside
-a large amount of error correction.
 
 \begin{figure}[H]
 \centering
@@ -118,14 +116,11 @@ a large amount of error correction.
 \subsection{Layer 2 Transmitter}
 The intended payload is passed into the data link layer. The layer needs to be given a destination address, a source address, and calculates the length of the payload. 
 The data link layer then appends a CRC to the end of the frame, which is used to detect errors in the transmitted frame. The frame is then passed to the physical 
-layer for transmission. This CRC is identical to that outlined in the Ethernet specification, and is a 32-bit CRC using the polynomial $x^{32} + x^{26} + x^{23} + x^{22} 
-+ x^{16} + x^{12} + x^{11} + x^{10} + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1$.
+layer for transmission.
 
 \subsection{Layer 1 Transmitter}
-The physical layer is a more computationally and conceptually heavy layer. The physical layer first encodes the frame using a Reed-Solomon code. A $RS(n, k)$ code adds $n - k$
-parity bytes and can correct up to $(n - k)/2$ byte errors per block. Next, the bitstream is interleaved, where bytes are rearranged to make the 
-data more resilient to burst errors. Noise events, such as a door shutting, cause a burst of errors, which is difficult to correct. Interleaving spreads the 
-noise across Reed-Solomon codewords, meaning that the Reed-Solomon code is able to correct the errors. The interleaved bitstream is then convolutionally encoded, 
+The physical layer is a more computationally and conceptually heavy layer. The physical layer first encodes the frame using a Reed-Solomon code. Next, the bitstream is interleaved, where bytes are rearranged to make the
+data more resilient to burst errors. The interleaved bitstream is then convolutionally encoded, 
 which is a type of error-correcting code that adds redundancy to the data. The purpose of this becomes clearer during the decode, where a Viterbi decoder is 
 used to decode the convolutionally encoded data. Next, the bitstream is modulated using a frequency-shift keying (FSK) modulation scheme, where a 0 is represented by 
 a lower frequency tone and a 1 is represented by a higher frequency tone. Finally, a preamble is appended to the front of the frame, which is a known sequence of bits
@@ -133,8 +128,7 @@ that is used to synchronize the receiver to the upcoming transmission frame.
 
 This generated audio file is then passed to the speaker, which plays a noise for the receiver to pick up.
 \subsection{Layer 1 Receiver}
-The physical layer receiver is responsible for demodulating the received audio signal back into a bitstream. The receiver first detects the preamble, 
-which is used to synchronize the receiver to the incoming frame. Once synchronized, the receiver demodulates the FSK signal back into a bitstream. 
+The physical layer receiver first detects the preamble and synchronizes to the incoming frame. Once synchronized, the receiver demodulates the FSK signal back into a bitstream.
 The demodulated bitstream is then passed through a Viterbi decoder, which decodes the convolutionally encoded data. Next, the bitstream is deinterleaved, 
 reversing the interleaving process performed by the transmitter. Finally, the Reed-Solomon decoder corrects any errors in the received frame, and passes it to the data link layer. 
 
@@ -145,7 +139,41 @@ extracts the payload from the frame, stripping the header and delivers it to the
 \section{Specifics}
 
 \subsection{Payload}
-The payload is the actual data being transmitted over the acoustic channel. The payload can be any arbitrary data, 
+The payload is the actual data being transmitted over the acoustic channel, and can be any arbitrary data. It is passed to the link layer as a byte array of at most 255 bytes. Payloads larger than 255 bytes are not fragmented by the data link layer; when carrying IP traffic, segmentation and fragmentation are handled by the network and transport layers.
+
+\subsection{Header}
+The header is a 3-byte field that is prepended to the payload. The first byte is the destination address, the second byte is the source address, and the third byte is the length of the payload. The destination and source addresses are used to identify the sender and receiver of the frame.
+
+\subsection{Cyclic Redundancy Check (CRC)}
+The CRC is an error-detecting code that acts as a last stage error checking mechanism.
+The protocol uses the 32-bit CRC defined in the Ethernet specification, with the polynomial $x^{32} + x^{26} + x^{23} + x^{22}
++ x^{16} + x^{12} + x^{11} + x^{10} + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1$. For details, see \href{https://standards.ieee.org/ieee/802.3/7071/}{IEEE 802.3}.
+
+
+\subsection{Reed-Solomon Code}
+Reed-Solomon is a block error-correcting code that operates on bytes. An RS($n$, $k$) code adds $n - k$
+parity bytes and can correct up to $(n - k)/2$ byte errors per block. This project uses a shortened RS(255, 223) code. Each frame is padded to 262 bytes and split into two 131-byte blocks, and each block gains 32 
+parity bytes, forming two RS(163, 131) codewords that can each correct up to 16 corrupted bytes. Because Reed-Solomon counts errors per byte rather than per bit, it is well suited to correcting the short bursts of errors left by the Viterbi decoder and those caused by sudden noise events, in conjunction with 
+the interleaving step.
+
+\subsection{Interleaving}
+Noise errors over sound are likely to be very concentrated in time (ie a door closing). Reed-Solomon is a block code, and can only correct a limited number of errors per block. 
+By distributing noise errors over multiple blocks, the Reed-Solomon code is able to correct more errors. Interleaving is the process of rearranging the order of the bytes in a frame, so that consecutive bytes are not adjacent in the transmitted frame. Data is 
+written into a matrix row-wise, and read out column-wise. 
+
+\subsection{Convolutional Encode + Viterbi Decode}
+Convolutional coding operates on a continuous bitstream rather than fixed blocks (like Reid-Solomon). An encoder shift register of constraint length $K = 7$ combines current and prior bits via XOR operations to generate redundant outputs, ensuring single corrupted bits do not destroy individual information symbols.
+
+This project implements an industry-standard rate-$1/2$ code ($K = 7$, generator polynomials $171_8$ and $133_8$), doubling the transmitted bit count. Each transmission frame terminates with $K - 1 = 6$ zero-valued tail bits to flush the register and return the encoder to a known all-zero state.
+
+The receiver recovers the sequence using the Viterbi algorithm across a $64$ state trellis. At each stage, the decoder executes an add-compare-select step to preserve only the lowest-cost path entering each state, followed by a traceback routine to reconstruct the transmitted bitstream.
+
+Decoding relies on soft decisions, giving much greater tolerance to noise. Any resulting decoding failure bursts are subsequently dispersed by a deinterleaver and corrected by an outer Reed-Solomon code.
+
+\subsection{Frequency-Shift Keying (FSK) Modulation}
+
+\subsection{Preamble}
+
 \section{Acknowledgements}
 Figures were generated with the help of Claude Opus 5.5, by describing every component of the figure in detail. The figure was then refined and polished by the authors.
 \end{document}
