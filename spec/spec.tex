@@ -6,6 +6,7 @@
 \usepackage{booktabs}
 \usepackage{float}
 \usepackage{caption}
+\usepackage{placeins}
 \usepackage{tikz}
 \usetikzlibrary{positioning,arrows.meta,fit,backgrounds,calc}
 \usepackage{graphicx} % only needed for \resizebox
@@ -33,18 +34,17 @@ This project implements layers one and two of the OSI model, the physical layer 
 The physical layer is responsible for modulating data into sound and demodulating sound back into data, alongside a large amount of error correction,
 while the data link layer is responsible for framing, addressing, and error detection, similar to its role in the Ethernet protocol.
 
-Dial-Up is designed to automatically connect devices.
-
-
-This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
+Dial-Up is designed to automatically let any two devices with a microphone and speaker to exchange data without pairing, shared specific hardware,
+or physical networking. A receiver contintuosly listens for a preamble, and when it detects one, it transforms the incoming sound waves into a bitstream
+decodes the bitstream, and delivers the payload to the network layer. This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
 
 \section{Pipeline}
 
 \begin{figure}[H]
 \centering
-\resizebox{\linewidth}{!}{%
+\resizebox{.8\linewidth}{!}{%
 \begin{tikzpicture}[
-  node distance=0.45cm,
+  node distance=0.4cm,
   block/.style={draw, rounded corners=3pt, minimum width=5.2cm,
                 minimum height=0.75cm, font=\small, fill=white, align=center},
   arr/.style={-{Stealth[length=2.2mm]}, thick},
@@ -90,8 +90,6 @@ This project was written using C++, and is designed to work on Linux, MacOS, and
 \path (r4) -- (r3) node[midway, lbl] {frame};
  
 % CRC failure branch
-\draw[arr, dashed] (r3.east) -- ++(1.0,0)
-  node[right, font=\footnotesize, align=left] {fail: drop};
  
 % ---------------- Column headers ----------------
 \node[font=\bfseries, above=0.6cm of t1] {Transmit};
@@ -171,8 +169,12 @@ The receiver recovers the sequence using the Viterbi algorithm across a $64$ sta
 Decoding relies on soft decisions, giving much greater tolerance to noise. Any resulting decoding failure bursts are subsequently dispersed by a deinterleaver and corrected by an outer Reed-Solomon code.
 
 \subsection{Frequency-Shift Keying (FSK) Modulation}
+At this point in the process, the data is a stream of bits. The physical layer modulates the bitstream into an audio signal using frequency-shift keying (FSK). In FSK, a 0 is represented by a lower frequency tone and a 1 is represented by a higher frequency tone. 
+This project uses a 2-FSK modulation scheme with frequencies of 17 kHz for 0 and 19 kHz for 1. The modulated audio signal is then passed to the speaker for transmission. The high frequencies are chosen to avoid the audible range of human hearing.
 
 \subsection{Preamble}
+The preamble is a known sequence of bits that is prepended to the frame. The preamble is used to synchronize the receiver to the incoming frame. The preamble is a 32-bit sequence of 
+alternating 1s and 0s, followed by a 16-bit sequence of all 1s. The preamble is transmitted at the same frequency as the data, and is used to detect the start of the frame and to synchronize the receiver's clock to the incoming signal.
 
 \section{Acknowledgements}
 Figures were generated with the help of Claude Opus 5.5, by describing every component of the figure in detail. The figure was then refined and polished by the authors.
