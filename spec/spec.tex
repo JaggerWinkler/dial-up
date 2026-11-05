@@ -45,10 +45,10 @@ While traditional radio-based protocols are often faster and less error prone, t
 The dial-up protocol should be able to:
 \begin{enumerate}
   \item Exchange arbitrary data between peers
-  \item Broadcast or send data to a specific peer
+  \item Broadcast to many peers or send data to a specific peer
   \item Send sound signals at different frequency levels
   \item Detect errors in the payload or header
-  \item Transmit data between peers at a reasonable speed
+  \item Transmit data between peers with reasonable speed and reliability
 \end{enumerate}
 \section{Pipeline}
 
@@ -152,7 +152,7 @@ extracts the payload from the frame, stripping the header and delivers it to the
 The payload is the actual data being transmitted over the acoustic channel, and can be any arbitrary data. It is passed to the link layer as a byte array of at most 255 bytes. Payloads larger than 255 bytes are not fragmented by the data link layer; when carrying IP traffic, segmentation and fragmentation are handled by the network and transport layers.
 
 \subsection{Header}
-The header is a 3-byte field that is prepended to the payload. The first byte is the destination address, the second byte is the source address, and the third byte is the length of the payload. The destination and source addresses are used to identify the sender and receiver of the frame.
+The header is a 3-byte field that is prepended to the payload. The first byte is the destination address, the second byte is the source address, and the third byte is the length of the payload. The destination and source addresses are used to identify the sender and receiver of the frame. A destination address of 0xff would correspond to a broadcast message, similar to broadcast messages for the 802.11 protocol.
 
 \subsection{Cyclic Redundancy Check (CRC)}
 The CRC is an error-detecting code that acts as a last stage error checking mechanism.
