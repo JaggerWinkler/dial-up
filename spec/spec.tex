@@ -38,7 +38,7 @@ Dial-Up is designed to automatically let any two devices with a microphone and s
 or physical networking. A receiver contintuosly listens for a preamble, and when it detects one, it transforms the incoming sound waves into a bitstream
 decodes the bitstream, and delivers the payload to the network layer. This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
 
-\section{What it does and who it serves}
+\section{Purpose}
 While traditional radio-based protocols are often faster and less error prone, they do have their drawbacks. Many OS's and network interface cards have little functionality for communicating directly between peers. Unless a user wants to send information through predefined channels like Apple Airdrop, they must interact with some intermediary like a wireless access point or a router to communicate with peers. This forces the user to choose between limiting their ability decide exactly what they want to send to their peers or introducing an extra security risk by putting a host you do not control in the middle of all communications. Radio-based communications also have to transmit over channels that are often eavesdropped, which allows for potential attackers to read messages. Our sound-based communication solution, on the other hand, can communicate peer-to-peer directly, regardless of architecture or operating system. It can also avoid transmitting data over busy, noisy, or eavesdropped channels as radio-based protocols often must by shifting its frequency range (most often to very high, inaudible frequencies). As a result, Dial-Up protocol can serve as a covert, yet reliable way to transmit data between peers that allows users to exchange whatever frames they please.
 
 \section{Pipeline}
