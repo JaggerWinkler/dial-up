@@ -41,6 +41,15 @@ decodes the bitstream, and delivers the payload to the network layer. This proje
 \section{Purpose}
 While traditional radio-based protocols are often faster and less error prone, they do have their drawbacks. Many OS's and network interface cards have little functionality for communicating directly between peers. Unless a user wants to send information through predefined channels like Apple Airdrop, they must interact with some intermediary like a wireless access point or a router to communicate with peers. This forces the user to choose between limiting their ability decide exactly what they want to send to their peers or introducing an extra security risk by putting a host you do not control in the middle of all communications. Radio-based communications also have to transmit over channels that are often eavesdropped, which allows for potential attackers to read messages. Our sound-based communication solution, on the other hand, can communicate peer-to-peer directly, regardless of architecture or operating system. It can also avoid transmitting data over busy, noisy, or eavesdropped channels as radio-based protocols often must by shifting its frequency range (most often to very high, inaudible frequencies). As a result, Dial-Up protocol can serve as a covert, yet reliable way to transmit data between peers that allows users to exchange whatever frames they please.
 
+\section{Broader Requirements}
+The dial-up protocol should be able to:
+\begin{enumerate}
+  \item Exchange arbitrary data between peers
+  \item Broadcast or send data to a specific peer
+  \item Send sound signals at different frequency levels
+  \item Detect errors in the payload or header
+  \item Transmit data between peers at a reasonable speed
+\end{enumerate}
 \section{Pipeline}
 
 \begin{figure}[H]
@@ -173,7 +182,7 @@ Decoding relies on soft decisions, giving much greater tolerance to noise. Any r
 
 \subsection{Frequency-Shift Keying (FSK) Modulation}
 At this point in the process, the data is a stream of bits. The physical layer modulates the bitstream into an audio signal using frequency-shift keying (FSK). In FSK, a 0 is represented by a lower frequency tone and a 1 is represented by a higher frequency tone. 
-This project uses a 2-FSK modulation scheme with frequencies of 17 kHz for 0 and 19 kHz for 1. The modulated audio signal is then passed to the speaker for transmission. The high frequencies are chosen to avoid the audible range of human hearing.
+This project uses a Q-FSK modulation scheme with frequencies ranging from 17 kHz to 19 kHz. The value of Q and the frequencies are preset for two peers before they start communicating, but can be changed between runs to increase data rate or improve signal quality. The modulated audio signal is then passed to the speaker for transmission. The high frequencies are chosen to avoid the audible range of human hearing and mitigate noise from sound reverberations off of walls.
 
 \subsection{Preamble}
 The preamble is a known sequence of bits that is prepended to the frame. The preamble is used to synchronize the receiver to the incoming frame. The preamble is a 32-bit sequence of 
