@@ -4,5 +4,6 @@ project(dial_up)
 set(CMAKE_CXX_STANDARD 26)
 
 add_executable(dial_up main.cpp
-        src/phy/header.h
-        src/phy/crc.h)
+        src/util.h
+        src/data_link_layer.cpp
+        src/data_link_layer.h)
