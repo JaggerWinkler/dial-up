@@ -66,7 +66,7 @@ The dial-up protocol should be able to:
  
 % ---------------- Transmit (top to bottom) ----------------
 \node[block] (t1) {Payload};
-\node[block, below=of t1] (t2) {Add header (dst, src, len)};
+\node[block, below=of t1] (t2) {Add header (dst MAC, src MAC, len)};
 \node[block, below=of t2] (t3) {Append CRC};
 \node[block, below=1.1cm of t3] (t4) {Reed--Solomon encode};
 \node[block, below=of t4] (t5) {Interleave};
@@ -124,7 +124,7 @@ The dial-up protocol should be able to:
 \end{figure}
 
 \subsection{Layer 2 Transmitter}
-The intended payload is passed into the data link layer. The layer needs to be given a destination address, a source address, and calculates the length of the payload. 
+The intended payload is passed into the data link layer. The layer needs to be given a destination MAC address and a source MAC address, and calculates the length of the payload. 
 The data link layer then appends a CRC to the end of the frame, which is used to detect errors in the transmitted frame. The frame is then passed to the physical 
 layer for transmission.
 
@@ -152,7 +152,28 @@ extracts the payload from the frame, stripping the header and delivers it to the
 The payload is the actual data being transmitted over the acoustic channel, and can be any arbitrary data. It is passed to the link layer as a byte array of at most 255 bytes. Payloads larger than 255 bytes are not fragmented by the data link layer; when carrying IP traffic, segmentation and fragmentation are handled by the network and transport layers.
 
 \subsection{Header}
-The header is a 3-byte field that is prepended to the payload. The first byte is the destination address, the second byte is the source address, and the third byte is the length of the payload. The destination and source addresses are used to identify the sender and receiver of the frame. A destination address of 0xff would correspond to a broadcast message, similar to broadcast messages for the 802.11 protocol.
+The header is a 13-byte field that is prepended to the payload. The first six bytes are the destination MAC address, the next six bytes are the source MAC address, and the final byte is the length of the payload in bytes. The destination and source MAC addresses are used to identify the receiver and sender of the frame, and follow the same 48-bit format as Ethernet and 802.11 MAC addresses. Placing the destination address first, as Ethernet does, lets a receiver decide whether a frame is addressed to it as soon as the first six bytes are decoded. A destination address of \texttt{ff:ff:ff:ff:ff:ff} corresponds to a broadcast message, similar to broadcast messages in Ethernet and 802.11. Receivers drop any frame whose destination is neither their own MAC address nor the broadcast address.
+
+The complete frame passed from the data link layer to the physical layer is laid out as follows:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lcc}
+\toprule
+Field & Size (bytes) & Offset (bytes) \\
+\midrule
+Destination MAC & 6 & 0 \\
+Source MAC & 6 & 6 \\
+Payload length & 1 & 12 \\
+Payload & 0--255 & 13 \\
+CRC-32 & 4 & $13 + \text{len}$ \\
+\midrule
+Total & 17--272 & \\
+\bottomrule
+\end{tabular}
+\caption{Data link layer frame format}
+\label{tab:frame-format}
+\end{table}
 
 \subsection{Cyclic Redundancy Check (CRC)}
 The CRC is an error-detecting code that acts as a last stage error checking mechanism.
@@ -162,8 +183,8 @@ The protocol uses the 32-bit CRC defined in the Ethernet specification, with the
 
 \subsection{Reed-Solomon Code}
 Reed-Solomon is a block error-correcting code that operates on bytes. An RS($n$, $k$) code adds $n - k$
-parity bytes and can correct up to $(n - k)/2$ byte errors per block. This project uses a shortened RS(255, 223) code. Each frame is padded to 262 bytes and split into two 131-byte blocks, and each block gains 32 
-parity bytes, forming two RS(163, 131) codewords that can each correct up to 16 corrupted bytes. Because Reed-Solomon counts errors per byte rather than per bit, it is well suited to correcting the short bursts of errors left by the Viterbi decoder and those caused by sudden noise events, in conjunction with 
+parity bytes and can correct up to $(n - k)/2$ byte errors per block. This project uses a shortened RS(255, 223) code. Each frame is padded to the maximum frame size of 272 bytes and split into two 136-byte blocks, and each block gains 32 
+parity bytes, forming two RS(168, 136) codewords (336 bytes in total) that can each correct up to 16 corrupted bytes. Because Reed-Solomon counts errors per byte rather than per bit, it is well suited to correcting the short bursts of errors left by the Viterbi decoder and those caused by sudden noise events, in conjunction with 
 the interleaving step.
 
 \subsection{Interleaving}
