@@ -11,9 +11,9 @@
 
 class data_link_layer {
 public:
-    std::vector<uint8_t> encode(Frame);
+    std::vector<uint8_t> encode(const MAC_Address dst_mac, const std::vector<uint8_t>& payload);
 
-    std::optional<Frame> decode(std::vector<uint8_t> data);
+    std::optional<Frame> decode(std::vector<uint8_t>& data);
 };
 
 

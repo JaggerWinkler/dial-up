@@ -8,6 +8,7 @@ find_library(PORTAUDIO_LIBRARY portaudio)
 
 add_executable(dial_up main.cpp
         src/util.h
+        src/util.cpp
         src/modem.h
         src/data_link_layer.cpp
         src/data_link_layer.h
@@ -24,3 +25,7 @@ add_executable(dial_up main.cpp
 
 target_include_directories(dial_up PRIVATE ${PORTAUDIO_INCLUDE_DIR})
 target_link_libraries(dial_up PRIVATE ${PORTAUDIO_LIBRARY})
+
+if(WIN32)
+    target_link_libraries(dial_up PRIVATE iphlpapi)
+endif()
