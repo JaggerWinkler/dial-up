@@ -11,9 +11,9 @@
 #include <string>
 #include <vector>
 
-struct MAC_Address {
-    std::array<uint8_t, 6> address;
-};
+using MAC_Address = std::array<uint8_t, 6>;
+
+inline constexpr MAC_Address BROADCAST_MAC = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
 struct Frame {
     std::vector<uint8_t> payload;

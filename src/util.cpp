@@ -49,7 +49,7 @@ std::optional<MAC_Address> get_MAC(const std::string& iface) {
             continue;
         }
         MAC_Address mac{};
-        std::memcpy(mac.address.data(), a->PhysicalAddress, 6);
+        std::memcpy(mac.data(), a->PhysicalAddress, 6);
         return mac;
     }
     return std::nullopt;   // buf frees itself; nothing else to release
@@ -68,13 +68,13 @@ std::optional<MAC_Address> linkAddress(const ifaddrs* i) {
     if (i->ifa_addr->sa_family != AF_LINK) return std::nullopt;
     auto* sdl = reinterpret_cast<const sockaddr_dl*>(i->ifa_addr);
     if (sdl->sdl_alen != 6) return std::nullopt;
-    std::memcpy(mac.address.data(), LLADDR(sdl), 6);
+    std::memcpy(mac.data(), LLADDR(sdl), 6);
 #else
     // Linux: the link-layer entry is AF_PACKET, address is a sockaddr_ll.
     if (i->ifa_addr->sa_family != AF_PACKET) return std::nullopt;
     auto* sll = reinterpret_cast<const sockaddr_ll*>(i->ifa_addr);
     if (sll->sll_halen != 6) return std::nullopt;
-    std::memcpy(mac.address.data(), sll->sll_addr, 6);
+    std::memcpy(mac.data(), sll->sll_addr, 6);
 #endif
     return mac;
 }

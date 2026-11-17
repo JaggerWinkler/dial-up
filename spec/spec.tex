@@ -124,7 +124,7 @@ The dial-up protocol should be able to:
 \end{figure}
 
 \subsection{Layer 2 Transmitter}
-The intended payload is passed into the data link layer. The layer needs to be given a destination MAC address and a source MAC address, and calculates the length of the payload. 
+The intended payload is passed into the data link layer along with a destination MAC address. The layer fills in the sending device's own MAC address as the source, and calculates the length of the payload.
 The data link layer then appends a CRC to the end of the frame, which is used to detect errors in the transmitted frame. The frame is then passed to the physical 
 layer for transmission.
 
@@ -179,6 +179,7 @@ Total & 17--272 & \\
 The CRC is an error-detecting code that acts as a last stage error checking mechanism.
 The protocol uses the 32-bit CRC defined in the Ethernet specification, with the polynomial $x^{32} + x^{26} + x^{23} + x^{22}
 + x^{16} + x^{12} + x^{11} + x^{10} + x^8 + x^7 + x^5 + x^4 + x^2 + x + 1$. For details, see \href{https://standards.ieee.org/ieee/802.3/7071/}{IEEE 802.3}.
+The CRC is computed over the header and payload (bytes $0$ through $12 + \text{len}$), exactly as the Ethernet frame check sequence (FCS) is computed: the register is initialized to \texttt{0xFFFFFFFF}, each byte is processed least significant bit first (the reflected form of the polynomial, \texttt{0xEDB88320}), and the final value is complemented (XORed with \texttt{0xFFFFFFFF}). As in Ethernet, the resulting 32-bit value is appended least significant byte first (little-endian). For example, the bytes of the ASCII string \texttt{123456789} produce the CRC \texttt{0xCBF43926}, appended as \texttt{26 39 F4 CB}.
 
 
 \subsection{Reed-Solomon Code}
