@@ -85,12 +85,12 @@ int grayDecode(int g) {   // inverse of n ^ (n >> 1) for 4-bit values
     return g;
 }
 
-// Tone index for every symbol: preamble as-is, then Gray-coded data symbols
-// of kBitsPerSymbol bits each, read MSB first from the packed bytes. A partial
-// last symbol is padded with 0 bits.
-std::vector<int> buildToneSequence(const std::vector<uint8_t>& data, size_t nbits) {
-    std::vector<int> tones(kPreamble, kPreamble + kPreambleLen);
+// Tone index for every data symbol: kBitsPerSymbol bits each, read MSB first
+// from the packed bytes, Gray-coded. A partial last symbol is padded with 0 bits.
+std::vector<int> bitsToTones(const std::vector<uint8_t>& data, size_t nbits) {
+    std::vector<int> tones;
     nbits = std::min(nbits, data.size() * 8);
+    tones.reserve((nbits + kBitsPerSymbol - 1) / kBitsPerSymbol);
     for (size_t pos = 0; pos < nbits; pos += kBitsPerSymbol) {
         int value = 0;
         for (int b = 0; b < kBitsPerSymbol; ++b) {
@@ -100,6 +100,14 @@ std::vector<int> buildToneSequence(const std::vector<uint8_t>& data, size_t nbit
         }
         tones.push_back(grayEncode(value));
     }
+    return tones;
+}
+
+// Put the preamble's tones in front of the data tones, so the receiver can
+// detect the frame and lock onto its symbol timing.
+std::vector<int> prependPreamble(const std::vector<int>& dataTones) {
+    std::vector<int> tones(kPreamble, kPreamble + kPreambleLen);
+    tones.insert(tones.end(), dataTones.begin(), dataTones.end());
     return tones;
 }
 
@@ -340,7 +348,7 @@ fsk::fsk(size_t frameBits, bool verbose) : rx_(std::make_unique<Receiver>(frameB
 fsk::~fsk() = default;
 
 std::vector<float> fsk::encode(const std::vector<uint8_t>& data, size_t nbits) {
-    return generateSoundData(buildToneSequence(data, nbits));
+    return generateSoundData(prependPreamble(bitsToTones(data, nbits)));
 }
 
 std::optional<std::vector<float>> fsk::decode(const float* samples, size_t n) {
