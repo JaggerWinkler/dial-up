@@ -40,10 +40,21 @@ add_executable(dial_up main.cpp
         src/fsk.cpp
         src/fsk.h
         src/speaker.cpp
-        src/speaker.h)
+        src/speaker.h
+        src/message.h
+        src/console.cpp
+        src/console.h
+        src/file.cpp
+        src/file.h
+        src/sender.cpp
+        src/sender.h
+        src/receiver.cpp
+        src/receiver.h)
+
+find_package(Threads REQUIRED)
 
 target_include_directories(dial_up PRIVATE ${PORTAUDIO_INCLUDE_DIR})
-target_link_libraries(dial_up PRIVATE ${PORTAUDIO_LIBRARY} correct_rs)
+target_link_libraries(dial_up PRIVATE ${PORTAUDIO_LIBRARY} correct_rs Threads::Threads)
 
 if(WIN32)
     target_link_libraries(dial_up PRIVATE iphlpapi)

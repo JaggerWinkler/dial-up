@@ -310,7 +310,7 @@ private:
 #ifdef DIAL_UP_HARD_BITS
         // Old: hard bits (0.0 / 1.0) from the strongest tone only.
         const int value = grayDecode(g);
-        for (int b = kBitsPerSymbol - 1; b >= 0; --b) soft_.push_back(float((value >> b) & 1));
+        for (int b = kBitsPerSymbol - 1; b >= 0; --b) soft_.push_back(static_cast<float>((value >> b) & 1));
 #else
         // Soft bits: P(bit = 1) = total energy share of every tone whose
         // (Gray-decoded) value has that bit set. p sums to 1, so this is in [0, 1].

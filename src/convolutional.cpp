@@ -88,7 +88,7 @@ std::vector<uint8_t> convolutional::decode(const std::vector<float>& soft) {
                 const Branch b = step(s, bit);
 #ifdef DIAL_UP_L1_METRIC
                 // Old: distance between the soft value and the expected bit.
-                const float cost = std::fabs(s1 - b.out1) + std::fabs(s2 - b.out2);
+                const float cost = std::fabs(s1 - static_cast<float>(b.out1)) + std::fabs(s2 - static_cast<float>(b.out2));
 #else
                 const float cost = bitCost(s1, b.out1) + bitCost(s2, b.out2);
 #endif

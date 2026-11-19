@@ -1,6 +1,6 @@
 # Dial-Up Source Guide
 
-How the implemented files in `src/` work and how they connect. Line references are as of 2026-11-17; they will drift as the code changes.
+How `main.cpp` and the files in `src/` work and how they connect. Line references are as of 2026-11-19; they will drift as the code changes.
 
 ## Pipeline
 
@@ -15,10 +15,10 @@ Each stage is one class in its own file. `encode` passes data **down** the stack
  data_link_layer   ── frame bytes (17–272 B) ──────────▶  data_link_layer   CRC / address check
         │                                                       ▲
         ▼                                                       │
- reed_solomon      ── codeword bytes ──────────────────▶  reed_solomon      [stub: passthrough]
+ reed_solomon      ── 336 codeword bytes ──────────────▶  reed_solomon      corrects ≤16 B/codeword
         │                                                       ▲
         ▼                                                       │
- interleaver       ── bytes ───────────────────────────▶  interleaver       [stub: passthrough]
+ interleaver       ── 336 bytes ───────────────────────▶  interleaver       restores byte order
         │                                                       ▲
         ▼                                                       │
  convolutional     ── packed coded bits ──┐       ┌── soft value per bit ──  convolutional  Viterbi
@@ -34,12 +34,13 @@ Each stage is one class in its own file. `encode` passes data **down** the stack
 |---|---|---|---|
 | `data_link_layer.*` | implemented | dst MAC + payload → frame bytes | frame bytes → `optional<Frame>` |
 | `util.*` | implemented | — (MAC lookup, shared types) | — |
-| `reed_solomon.*` | stub | returns input unchanged | returns input unchanged |
-| `interleaver.*` | stub | returns input unchanged | returns input unchanged |
+| `reed_solomon.*` | implemented (libcorrect) | frame → 336 bytes (2 codewords) | 336 bytes → 272-byte frame, or `nullopt` |
+| `interleaver.*` | implemented | 336 bytes → reordered 336 bytes | undoes the reordering |
 | `convolutional.*` | implemented | bytes → packed coded bits | soft values → bytes |
 | `modem.h` | implemented | — (FSK parameters) | — |
 | `fsk.*` | implemented | packed bits → audio samples | mic samples → soft values (per frame) |
 | `speaker.*` | implemented | play samples | read one mic chunk |
+| `main.cpp`, `sender.*`, `receiver.*`, `file.*` | implemented | REPL: `/send`, `/file` (optional `@mac`) | prints text, saves files |
 
 ---
 
@@ -48,8 +49,8 @@ Each stage is one class in its own file. `encode` passes data **down** the stack
 - [`util.h:14`](src/util.h#L14) `MAC_Address` is a 6-byte array; [`util.h:16`](src/util.h#L16) `BROADCAST_MAC` is `ff:ff:ff:ff:ff:ff`.
 - [`util.h:18`](src/util.h#L18) `Frame` is what the data link layer hands up: `payload`, `dest`, `source`.
 - [`util.h:32`](src/util.h#L32) `get_MAC(iface)` reads this machine's hardware address. It has two implementations:
-  - Windows, [`util.cpp:29`](src/util.cpp#L29): `GetAdaptersAddresses`. With no `iface` it picks a physical adapter that is up and has a gateway ([`util.cpp:45-47`](src/util.cpp#L45-L47)).
-  - macOS / Linux, [`util.cpp:105`](src/util.cpp#L105): `getifaddrs`. With no `iface`, [`defaultInterface`](src/util.cpp#L92) picks the first up, running, non-loopback, non-virtual interface with an IPv4 address. [`isVirtual`](src/util.cpp#L83) filters out docker, VPN and AWDL interfaces. [`linkAddress`](src/util.cpp#L64) pulls the MAC from the `AF_LINK` (macOS) or `AF_PACKET` (Linux) entry.
+  - Windows, [`util.cpp:31`](src/util.cpp#L31): `GetAdaptersAddresses`. With no `iface` it picks a physical adapter that is up and has a gateway ([`util.cpp:47-49`](src/util.cpp#L47-L49)).
+  - macOS / Linux, [`util.cpp:106`](src/util.cpp#L106): `getifaddrs`. With no `iface`, [`defaultInterface`](src/util.cpp#L93) picks the first up, running, non-loopback, non-virtual interface with an IPv4 address. [`isVirtual`](src/util.cpp#L85) filters out docker, VPN and AWDL interfaces. [`linkAddress`](src/util.cpp#L66) pulls the MAC from the `AF_LINK` (macOS) or `AF_PACKET` (Linux) entry.
 
 **Connects to:** `data_link_layer`, which calls `get_MAC` once in its constructor.
 
@@ -81,11 +82,38 @@ Each stage is one class in its own file. `encode` passes data **down** the stack
 
 ---
 
+## `reed_solomon.h` / `.cpp`: outer error correction (libcorrect)
+
+**Sizes** ([`reed_solomon.h:16-21`](src/reed_solomon.h#L16-L21)): the frame is padded to 272 bytes and split into 2 blocks of 136. Each block gains 32 parity bytes, giving 2 RS(168, 136) codewords and 336 bytes in total. Each codeword corrects up to 16 bad bytes.
+
+- **Library.** The constructor ([`reed_solomon.cpp:10`](src/reed_solomon.cpp#L10)) creates a libcorrect RS(255, 223) codec with field polynomial `0x11d` and 32 roots; the 168-byte codewords are a shortened form of it. libcorrect is downloaded by CMake (`FetchContent`), and only its Reed–Solomon sources are built (`correct_rs`).
+- **One handle per instance.** The object owns the libcorrect handle, so it can't be copied ([`reed_solomon.h:27-28`](src/reed_solomon.h#L27-L28)). The handle keeps scratch buffers, so `main.cpp` gives the send side and the receive thread one instance each.
+- **`encode`** ([`:20`](src/reed_solomon.cpp#L20)):
+  - throws if the frame is over 272 bytes ([`:22`](src/reed_solomon.cpp#L22));
+  - zero-pads it to 272 ([`:25`](src/reed_solomon.cpp#L25));
+  - encodes each 136-byte block into a 168-byte codeword ([`:28`](src/reed_solomon.cpp#L28)).
+- **`decode`** ([`:33`](src/reed_solomon.cpp#L33)): returns `nullopt` if the input isn't 336 bytes ([`:34`](src/reed_solomon.cpp#L34)) or any codeword has too many errors ([`:39`](src/reed_solomon.cpp#L39)). Otherwise it returns the 272-byte padded frame. `data_link_layer::decode` finds the real end from the length byte, so the padding is harmless.
+
+**Connects to:** `data_link_layer` above and `interleaver` below. Its fixed 336-byte output is what fixes the physical frame size (5388 coded bits).
+
+---
+
+## `interleaver.h` / `.cpp`: spreading bursts across codewords
+
+- **Layout** ([`interleaver.cpp:10`](src/interleaver.cpp#L10)): a matrix with one row per Reed–Solomon codeword (2 rows of 168 bytes).
+- **`encode`** ([`:20`](src/interleaver.cpp#L20)) writes rows and reads columns ([`:26`](src/interleaver.cpp#L26)), so transmitted bytes alternate between the two codewords. A burst of noise then costs each codeword only half of its damaged bytes.
+- **`decode`** ([`:32`](src/interleaver.cpp#L32)) does the inverse ([`:38`](src/interleaver.cpp#L38)).
+- **Size check:** both throw `std::length_error` if the size isn't a multiple of the row count ([`:13`](src/interleaver.cpp#L13)). The convolutional decoder always returns 336 bytes, so this can't happen in the normal pipeline.
+
+**Connects to:** `reed_solomon` above and `convolutional` below.
+
+---
+
 ## `convolutional.h` / `.cpp`: rate-1/2 K=7 encoder and soft Viterbi decoder
 
 The header ([`convolutional.h:11-13`](src/convolutional.h#L11-L13)) exposes only `encode` and `decode`. All parameters live in the `.cpp`.
 
-### Parameters ([`convolutional.cpp:11-18`](src/convolutional.cpp#L11-L18))
+### Parameters ([`convolutional.cpp:12-19`](src/convolutional.cpp#L12-L19))
 
 | Name | Value | Meaning |
 |---|---|---|
@@ -94,38 +122,38 @@ The header ([`convolutional.h:11-13`](src/convolutional.h#L11-L13)) exposes only
 | `kG1`, `kG2` | `0171`, `0133` | generator polynomials (octal), one per output bit |
 | `kStates` | 64 | trellis states = 2^(K−1) |
 
-### Shared core: `step` ([`:27`](src/convolutional.cpp#L27))
+### Shared core: `step` ([`:28`](src/convolutional.cpp#L28))
 
-- **Model.** The 7-bit shift register holds the new input bit in bit 0 and the six previous bits above it ([`:28`](src/convolutional.cpp#L28)).
-- **Outputs.** The two output bits are the parity of `reg & G1` and `reg & G2`. The next state is the low 6 bits of the register ([`:29`](src/convolutional.cpp#L29)).
+- **Model.** The 7-bit shift register holds the new input bit in bit 0 and the six previous bits above it ([`:29`](src/convolutional.cpp#L29)).
+- **Outputs.** The two output bits are the parity of `reg & G1` and `reg & G2`. The next state is the low 6 bits of the register ([`:30`](src/convolutional.cpp#L30)).
 - **Shared by both sides.** Encoder and decoder both call `step`, so they can't disagree on the bit convention.
 
 ### Bit packing
 
-- **Helpers.** [`getBit` / `setBit` (:32-33)](src/convolutional.cpp#L32-L33) read and write bit `i` of a byte vector, most significant bit first. `fsk` reads its input bits in the same order.
+- **Helpers.** [`getBit` / `setBit` (:33-34)](src/convolutional.cpp#L33-L34) read and write bit `i` of a byte vector, most significant bit first. `fsk` reads its input bits in the same order.
 - **Coded size.** The output is `(bytes × 8 + 6) × 2` bits. That isn't a whole number of bytes in general, so the caller passes the exact bit count to `fsk::encode`.
 
-### `encode` ([`:47`](src/convolutional.cpp#L47))
+### `encode` ([`:48`](src/convolutional.cpp#L48))
 
-1. Loops over every data bit plus 6 tail zeros ([`:53-54`](src/convolutional.cpp#L53-L54)).
-2. Each input bit emits two coded bits ([`:55-59`](src/convolutional.cpp#L55-L59)).
-3. The tail leaves the encoder back in state 0 ([`:62`](src/convolutional.cpp#L62)). The decoder relies on that.
+1. Loops over every data bit plus 6 tail zeros ([`:54-55`](src/convolutional.cpp#L54-L55)).
+2. Each input bit emits two coded bits ([`:56-60`](src/convolutional.cpp#L56-L60)).
+3. The tail leaves the encoder back in state 0 ([`:63`](src/convolutional.cpp#L63)). The decoder relies on that.
 
-### `decode` ([`:65`](src/convolutional.cpp#L65))
+### `decode` ([`:66`](src/convolutional.cpp#L66))
 
-1. **Soft input convention.** Each input value is P(bit = 1), in [0, 1]: 0.0 means surely a 0, 1.0 means surely a 1, 0.5 means no idea. Two values make one trellis step ([`:66`](src/convolutional.cpp#L66)).
-2. **Start state.** Only state 0 starts with a finite path metric ([`:71-73`](src/convolutional.cpp#L71-L73)).
-3. **Add-compare-select** ([`:83-101`](src/convolutional.cpp#L83-L101)):
-   - For every live state and both possible input bits, the branch cost is the sum of [`bitCost`](src/convolutional.cpp#L39) for the two coded bits ([`:92`](src/convolutional.cpp#L92)).
+1. **Soft input convention.** Each input value is P(bit = 1), in [0, 1]: 0.0 means surely a 0, 1.0 means surely a 1, 0.5 means no idea. Two values make one trellis step ([`:67`](src/convolutional.cpp#L67)).
+2. **Start state.** Only state 0 starts with a finite path metric ([`:72-74`](src/convolutional.cpp#L72-L74)).
+3. **Add-compare-select** ([`:84-102`](src/convolutional.cpp#L84-L102)):
+   - For every live state and both possible input bits, the branch cost is the sum of [`bitCost`](src/convolutional.cpp#L40) for the two coded bits ([`:93`](src/convolutional.cpp#L93)).
    - `bitCost(s, e) = −log P(bit = e)`, clamped at P ≥ 1e-6 so a sure contradiction costs about 13.8 rather than infinity. Summed along a path, that is −log of the path's probability, so the cheapest path is the most likely one.
    - Each next state keeps only its cheapest incoming path.
-   - It records which predecessor won as one bit: the predecessor's top state bit, the one shifted out ([`:97`](src/convolutional.cpp#L97)).
-4. **Traceback from state 0** ([`:104-111`](src/convolutional.cpp#L104-L111)):
-   - The input bit at step `t` is the low bit of the state entered at step `t` ([`:109`](src/convolutional.cpp#L109)).
-   - The predecessor is rebuilt from the stored bit ([`:110`](src/convolutional.cpp#L110)).
-   - Tail bits are dropped ([`:109`](src/convolutional.cpp#L109), `t < dataBits`).
+   - It records which predecessor won as one bit: the predecessor's top state bit, the one shifted out ([`:98`](src/convolutional.cpp#L98)).
+4. **Traceback from state 0** ([`:105-112`](src/convolutional.cpp#L105-L112)):
+   - The input bit at step `t` is the low bit of the state entered at step `t` ([`:110`](src/convolutional.cpp#L110)).
+   - The predecessor is rebuilt from the stored bit ([`:111`](src/convolutional.cpp#L111)).
+   - Tail bits are dropped ([`:110`](src/convolutional.cpp#L110), `t < dataBits`).
 
-**Old metric kept for comparison.** Building with `-DDIAL_UP_L1_METRIC` switches the branch cost back to `|s1 − out1| + |s2 − out2|` ([`:88-91`](src/convolutional.cpp#L88-L91)).
+**Old metric kept for comparison.** Building with `-DDIAL_UP_L1_METRIC` switches the branch cost back to `|s1 − out1| + |s2 − out2|` ([`:89-92`](src/convolutional.cpp#L89-L92)).
 
 **Tested** with 326 random bytes:
 - clean input and 3% random bit flips: 0 errors;
@@ -252,20 +280,105 @@ P(bit = 1) = Σ p[t]  over the tones t whose grayDecode(t) has that bit set
 
 ---
 
+## The app: `main.cpp`, `sender`, `receiver`, `file`, `message.h`, `console`
+
+| File | Job |
+|---|---|
+| `main.cpp` | flags, startup, REPL |
+| [`src/sender.*`](src/sender.h) | builds payloads and pushes them down the stack |
+| [`src/receiver.*`](src/receiver.h) | background mic loop; pushes frames up the stack and acts on them |
+| [`src/file.*`](src/file.h) | file splitting, `/file` search, reassembly and saving |
+| [`src/message.h`](src/message.h) | message type bytes, `kCodedBits`, `kFrameSeconds` |
+| [`src/console.*`](src/console.h) | mutex-guarded `out` / `err` / `prompt`, `macToString` |
+
+```
+dial_up [-s] [-r] [-v] [--mac aa:bb:cc:dd:ee:ff]
+```
+
+**Flags** ([`parseArgs`, main.cpp:60](main.cpp#L60)):
+- **`-s` / `-r`:** send only or receive only. Neither or both means both. Combined flags like `-sr` work.
+- **`-v`:** turns on the demodulator's diagnostics.
+- **`--mac`:** replaces the hardware MAC, so two processes on one machine can act as two peers.
+
+**Startup** ([`main`, main.cpp:139](main.cpp#L139)):
+1. Creates `received/` ([`:144`](main.cpp#L144); the path is `file::kReceivedDir`).
+2. Gets the MAC from `--mac` or `get_MAC()` ([`:150`](main.cpp#L150)).
+3. If receiving, builds a `receiver` and runs it on its own thread ([`:167`](main.cpp#L167)).
+4. Runs the REPL on the main thread ([`repl`, :98](main.cpp#L98)).
+
+**Commands:**
+
+| Command | What it does |
+|---|---|
+| `/send [@mac] <text>` | one text frame, up to 254 bytes ([`sender::sendText`, sender.cpp:33](src/sender.cpp#L33)) |
+| `/file [@mac] <name>` | an existing path, or a recursive search of the current directory by filename ([`file::find`, file.cpp:74](src/file.cpp#L74)); several matches are listed instead of guessing |
+| `/help` | list commands |
+| `/quit` | exit (Ctrl-D also works) |
+
+- **Recipient:** an optional `@aa:bb:cc:dd:ee:ff` right after the command sends to that device only ([`main.cpp:114-123`](main.cpp#L114-L123)); without it the message goes to `BROADCAST_MAC`. The receiving `data_link_layer` drops frames addressed to anyone else ([`data_link_layer.cpp:93`](src/data_link_layer.cpp#L93)).
+- **Receive-only mode:** `/send` and `/file` print "sending is disabled (-r)".
+- **Sending blocks the prompt,** at about 14 s per frame ([`message::kFrameSeconds`, message.h:32](src/message.h#L32)).
+
+### Message format (inside the ≤ 255-byte data-link payload)
+
+Byte 0 is the type ([`message.h:21`](src/message.h#L21)). Multi-byte numbers are big-endian.
+
+```
+text        [0x00][UTF-8 text, ≤ 254 B]
+file chunk  [0x01][transfer id 1][chunk index 2][chunk count 2]            ← 6-byte header
+              chunk 0:  [name length 1][name ≤ 64 B][file data …]
+              others:   [file data …]
+```
+
+### Splitting a file ([`file::buildChunks`, file.cpp:38](src/file.cpp#L38))
+
+- **Chunk sizes.** Chunk 0 carries the name plus 248 − (name length) bytes of data; every later chunk carries 249. A 1000-byte `photo.bin` becomes 5 frames.
+- **Transfer id.** Each `/file` gets the next id, starting from a random byte ([`sender.cpp:18`](src/sender.cpp#L18)), so a new transfer never merges with an older one.
+- **Limits.** Up to 65,535 chunks; names longer than 64 bytes are shortened, keeping the extension ([`file::wireName`, file.cpp:66](src/file.cpp#L66)).
+
+### Reassembling a file ([`file::assembler`, file.h:53](src/file.h#L53))
+
+- **Key:** each transfer is keyed by (sender MAC, transfer id). It holds one slot per chunk, the name, a count of chunks received, and the time of the last chunk.
+- **New chunk** ([`addChunk`, file.cpp:101](src/file.cpp#L101)):
+  - A different chunk count under the same key means a new transfer reused the id, so the old entry is dropped.
+  - Duplicates are ignored.
+  - Each chunk prints `receiving <name> from <MAC>: k/N`, with `?` as the name until chunk 0 arrives.
+  - Chunks may arrive in any order.
+- **Complete:** once every slot is filled, the chunks are written in order to `received/` and `received <name> from <MAC>` is printed ([`save`, file.cpp:161](src/file.cpp#L161)).
+- **Lost chunks:** a transfer with no new chunk for 3 frame times (~41 s, [`kTransferTimeout`, file.h:27](src/file.h#L27)) is discarded with an "incomplete" message ([`expire`, file.cpp:146](src/file.cpp#L146)). There are no acknowledgements, so nothing is resent.
+- **Safe saving:** names are cut to their basename, so `../x` can't leave `received/`, and an existing name becomes `name (1).ext`, `name (2).ext`, and so on (`safeName` / `uniquePath`, [file.cpp:18-30](src/file.cpp#L18-L30)).
+
+### Wiring the stack
+
+- **Send** ([`sender::send`, sender.cpp:27](src/sender.cpp#L27)): data link (to `dest`) → Reed–Solomon → interleave → convolutional → FSK (5388 bits, [`message::kCodedBits`, message.h:29](src/message.h#L29)) → speaker.
+- **Receive** ([`receiver::run`, receiver.cpp:32](src/receiver.cpp#L32)):
+  - Mic chunks feed the receiver's `fsk` demodulator. Each completed frame goes through [`demodulate` (receiver.cpp:52)](src/receiver.cpp#L52): Viterbi → deinterleave → Reed–Solomon → data link.
+  - Failures are logged to stderr and the frame is dropped.
+  - [`onFrame` (receiver.cpp:64)](src/receiver.cpp#L64) prints text as `[MAC] text`, with control bytes replaced so a message can't drive the terminal ([`printableText`, :17](src/receiver.cpp#L17)), and hands file chunks to the assembler.
+- **Self-echo:** in send + receive mode the mic hears our own speaker, so frames whose source is our MAC are ignored ([`receiver.cpp:65`](src/receiver.cpp#L65)).
+- **Threads:**
+  - The REPL and the receive thread share one `speaker`. The receive thread uses the input stream and sending opens output streams.
+  - `sender` and `receiver` each own a `reed_solomon` ([`sender.h:31`](src/sender.h#L31), [`receiver.h:34`](src/receiver.h#L34)).
+  - Console output goes through one mutex ([`console.cpp:9`](src/console.cpp#L9)).
+
+---
+
 ## One frame, end to end
 
 **Transmit:**
-1. `data_link_layer::encode(dst, payload)` → up to 272 bytes.
-2. `reed_solomon::encode` → 336 bytes per the spec (2 × RS(168,136)); currently a passthrough.
-3. `interleaver::encode` → 336 bytes; currently a passthrough.
-4. `convolutional::encode` → (336 × 8 + 6) × 2 = **5388 coded bits**, packed.
-5. `fsk::encode(bytes, 5388)` → 16 preamble + 1347 data symbols = 13.6 s of audio at 10 ms per symbol (plus fades).
-6. `speaker::encode(samples)` plays it.
+1. `sender` builds a text or file-chunk payload (≤ 255 bytes).
+2. `data_link_layer::encode(dest, payload)` (`dest` is `BROADCAST_MAC` unless `@mac` was given) → up to 272 bytes.
+3. `reed_solomon::encode` → 336 bytes (2 × RS(168,136)).
+4. `interleaver::encode` → 336 bytes, alternating between the codewords.
+5. `convolutional::encode` → (336 × 8 + 6) × 2 = **5388 coded bits**, packed.
+6. `fsk::encode(bytes, 5388)` → 16 preamble + 1347 data symbols = 13.6 s of audio at 10 ms per symbol (plus fades).
+7. `speaker::encode(samples)` plays it.
 
 **Receive:**
 1. Loop: `speaker::decode()` → `fsk::decode(chunk)` until it returns 5388 soft values. The `fsk` object is built with `frameBits = 5388`.
 2. `convolutional::decode(soft)` → 336 bytes.
 3. `interleaver::decode` → `reed_solomon::decode` → `data_link_layer::decode` → `Frame`, or dropped.
+4. `receiver` prints the text or adds the file chunk to its transfer.
 
 ## Comparing decoder variants
 
@@ -294,10 +407,9 @@ Soft values cut errors about 4× where it matters. The two metrics are within no
 
 ## Open items
 
-- `reed_solomon` and `interleaver` are passthrough stubs.
-- **Frame size is hard-coded twice.** The 5388-bit size depends on the Reed–Solomon output size, and both the sender's `nbits` and the receiver's `frameBits` must match it. Nothing in the code computes it yet.
-- **Soft values aren't calibrated probabilities.** Energy shares are softer than the true likelihoods, which is likely why the −log P metric hasn't beaten the old metric yet (see below).
+- **No retransmission.** A file chunk lost to noise loses the whole file; the receiver reports it as incomplete after ~41 s.
+- **Shared `speaker` across threads.** PortAudio doesn't promise thread safety. Separate input and output streams work on CoreAudio; if they don't elsewhere, add a mutex around stream open/close in `speaker`.
+- **`kTailBits` is duplicated.** `message.h` repeats the convolutional code's 6 tail bits to compute `kCodedBits`, since `convolutional.h` no longer exports it.
+- **Soft values aren't calibrated probabilities.** Energy shares are softer than the true likelihoods, which is likely why the −log P metric hasn't beaten the old metric yet (see "Comparing decoder variants").
 - **The "signal lost" check fires before decoding fails.** In white-noise tests, the 3-weak-symbols-in-a-row check (`kMinSymbolConf`, [`fsk.cpp:35`](src/fsk.cpp#L35)) drops frames at noise levels the decoder could still mostly handle.
-- **Legacy leftovers:**
-  - `modem.h`'s header comment and `crc8` ([`:1`](src/modem.h#L1), [`:37-49`](src/modem.h#L37-L49)) still describe the old rx/tx frame format.
-  - `rx.cpp` / `tx.cpp` in the repo root no longer build, since `modem.h` moved to `src/`.
+- **Legacy leftovers:** `modem.h`'s header comment and `crc8` ([`:1`](src/modem.h#L1), [`:37-49`](src/modem.h#L37-L49)) still describe the old rx/tx frame format.

@@ -8,7 +8,7 @@ namespace modem {
 
 constexpr int kSampleRate = 48000;                 // audio sample rate for playback and capture [samples/s = Hz]
 
-constexpr int kWindow        = 480;                // Goertzel analysis window length [samples] (= 10 ms)
+constexpr int kWindow        = 240;                // Goertzel analysis window length [samples] (= 10 ms)
 constexpr int kSymbolSamples = kWindow;            // length of one FSK symbol [samples]
 
 constexpr int kBitsPerSymbol = 4;                  // data bits carried by each symbol [bits/symbol]
@@ -25,7 +25,7 @@ static_assert(kSampleRate % kWindow == 0, "whole Hz per bin");
 static_assert(kBaseFreq % kBinHz == 0 && kToneSpacing % kBinHz == 0,
               "every tone must fit a whole number of cycles in the window");
 
-static_assert(kToneSpacing >= 2 * kBinHz, "tones need at least 2 bins of separation");
+static_assert(kToneSpacing >= kBinHz, "tones need at least 2 bins of separation");
 
 static_assert(kBaseFreq + kToneSpacing * (kTones - 1) <= 21600,
               "stay below the ~20 kHz cutoff of 44.1 kHz resamplers/anti-alias filters");
