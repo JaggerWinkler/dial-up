@@ -31,8 +31,9 @@ public:
     /**
      * @brief Up the stack: feed microphone samples in any chunk size. Searches
      *        for the preamble, syncs, and demodulates the frame that follows.
-     * @return One soft value per coded bit once a whole frame has been
-     *         demodulated, otherwise nullopt.
+     * @return One soft value per coded bit, P(bit = 1) in [0, 1], once a whole
+     *         frame has been demodulated, otherwise nullopt. Build with
+     *         -DDIAL_UP_HARD_BITS for the old hard 0.0 / 1.0 bits.
      */
     std::optional<std::vector<float>> decode(const float* samples, size_t n);
 

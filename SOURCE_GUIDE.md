@@ -85,7 +85,7 @@ Each stage is one class in its own file. `encode` passes data **down** the stack
 
 The header ([`convolutional.h:11-13`](src/convolutional.h#L11-L13)) exposes only `encode` and `decode`. All parameters live in the `.cpp`.
 
-### Parameters ([`convolutional.cpp:10-17`](src/convolutional.cpp#L10-L17))
+### Parameters ([`convolutional.cpp:11-18`](src/convolutional.cpp#L11-L18))
 
 | Name | Value | Meaning |
 |---|---|---|
@@ -94,35 +94,38 @@ The header ([`convolutional.h:11-13`](src/convolutional.h#L11-L13)) exposes only
 | `kG1`, `kG2` | `0171`, `0133` | generator polynomials (octal), one per output bit |
 | `kStates` | 64 | trellis states = 2^(K−1) |
 
-### Shared core: `step` ([`:26`](src/convolutional.cpp#L26))
+### Shared core: `step` ([`:27`](src/convolutional.cpp#L27))
 
-- **Model.** The 7-bit shift register holds the new input bit in bit 0 and the six previous bits above it ([`:27`](src/convolutional.cpp#L27)).
-- **Outputs.** The two output bits are the parity of `reg & G1` and `reg & G2`. The next state is the low 6 bits of the register ([`:28`](src/convolutional.cpp#L28)).
+- **Model.** The 7-bit shift register holds the new input bit in bit 0 and the six previous bits above it ([`:28`](src/convolutional.cpp#L28)).
+- **Outputs.** The two output bits are the parity of `reg & G1` and `reg & G2`. The next state is the low 6 bits of the register ([`:29`](src/convolutional.cpp#L29)).
 - **Shared by both sides.** Encoder and decoder both call `step`, so they can't disagree on the bit convention.
 
 ### Bit packing
 
-- **Helpers.** [`getBit` / `setBit` (:31-32)](src/convolutional.cpp#L31-L32) read and write bit `i` of a byte vector, most significant bit first. `fsk` reads its input bits in the same order.
+- **Helpers.** [`getBit` / `setBit` (:32-33)](src/convolutional.cpp#L32-L33) read and write bit `i` of a byte vector, most significant bit first. `fsk` reads its input bits in the same order.
 - **Coded size.** The output is `(bytes × 8 + 6) × 2` bits. That isn't a whole number of bytes in general, so the caller passes the exact bit count to `fsk::encode`.
 
-### `encode` ([`:36`](src/convolutional.cpp#L36))
+### `encode` ([`:47`](src/convolutional.cpp#L47))
 
-1. Loops over every data bit plus 6 tail zeros ([`:42-43`](src/convolutional.cpp#L42-L43)).
-2. Each input bit emits two coded bits ([`:44-48`](src/convolutional.cpp#L44-L48)).
-3. The tail leaves the encoder back in state 0 ([`:51`](src/convolutional.cpp#L51)). The decoder relies on that.
+1. Loops over every data bit plus 6 tail zeros ([`:53-54`](src/convolutional.cpp#L53-L54)).
+2. Each input bit emits two coded bits ([`:55-59`](src/convolutional.cpp#L55-L59)).
+3. The tail leaves the encoder back in state 0 ([`:62`](src/convolutional.cpp#L62)). The decoder relies on that.
 
-### `decode` ([`:54`](src/convolutional.cpp#L54))
+### `decode` ([`:65`](src/convolutional.cpp#L65))
 
-1. **Soft input convention.** Each input value is in [0, 1]: 0.0 means surely a 0, 1.0 means surely a 1, 0.5 means no idea. Two values make one trellis step ([`:55`](src/convolutional.cpp#L55)).
-2. **Start state.** Only state 0 starts with a finite path metric ([`:60-62`](src/convolutional.cpp#L60-L62)).
-3. **Add-compare-select** ([`:72-85`](src/convolutional.cpp#L72-L85)):
-   - For every live state and both possible input bits, the branch cost is `|s1 − out1| + |s2 − out2|` ([`:77`](src/convolutional.cpp#L77)).
+1. **Soft input convention.** Each input value is P(bit = 1), in [0, 1]: 0.0 means surely a 0, 1.0 means surely a 1, 0.5 means no idea. Two values make one trellis step ([`:66`](src/convolutional.cpp#L66)).
+2. **Start state.** Only state 0 starts with a finite path metric ([`:71-73`](src/convolutional.cpp#L71-L73)).
+3. **Add-compare-select** ([`:83-101`](src/convolutional.cpp#L83-L101)):
+   - For every live state and both possible input bits, the branch cost is the sum of [`bitCost`](src/convolutional.cpp#L39) for the two coded bits ([`:92`](src/convolutional.cpp#L92)).
+   - `bitCost(s, e) = −log P(bit = e)`, clamped at P ≥ 1e-6 so a sure contradiction costs about 13.8 rather than infinity. Summed along a path, that is −log of the path's probability, so the cheapest path is the most likely one.
    - Each next state keeps only its cheapest incoming path.
-   - It records which predecessor won as one bit: the predecessor's top state bit, the one shifted out ([`:81`](src/convolutional.cpp#L81)).
-4. **Traceback from state 0** ([`:88-95`](src/convolutional.cpp#L88-L95)):
-   - The input bit at step `t` is the low bit of the state entered at step `t` ([`:93`](src/convolutional.cpp#L93)).
-   - The predecessor is rebuilt from the stored bit ([`:94`](src/convolutional.cpp#L94)).
-   - Tail bits are dropped ([`:93`](src/convolutional.cpp#L93), `t < dataBits`).
+   - It records which predecessor won as one bit: the predecessor's top state bit, the one shifted out ([`:97`](src/convolutional.cpp#L97)).
+4. **Traceback from state 0** ([`:104-111`](src/convolutional.cpp#L104-L111)):
+   - The input bit at step `t` is the low bit of the state entered at step `t` ([`:109`](src/convolutional.cpp#L109)).
+   - The predecessor is rebuilt from the stored bit ([`:110`](src/convolutional.cpp#L110)).
+   - Tail bits are dropped ([`:109`](src/convolutional.cpp#L109), `t < dataBits`).
+
+**Old metric kept for comparison.** Building with `-DDIAL_UP_L1_METRIC` switches the branch cost back to `|s1 − out1| + |s2 − out2|` ([`:88-91`](src/convolutional.cpp#L88-L91)).
 
 **Tested** with 326 random bytes:
 - clean input and 3% random bit flips: 0 errors;
@@ -166,10 +169,10 @@ The `static_assert`s ([`:23-31`](src/modem.h#L23-L31)) check three things:
 
 - [`fsk(frameBits, verbose)`, :19](src/fsk.h#L19): `frameBits` tells the receiver how many coded bits follow a preamble. Frames have a fixed size after Reed–Solomon, so the receiver needs no length field.
 - [`encode(data, nbits)`, :29](src/fsk.h#L29): packed bits in, mono samples out.
-- [`decode(samples, n)`, :37](src/fsk.h#L37): feed microphone audio in any chunk size. It returns soft values once a whole frame has been demodulated, otherwise `nullopt`.
+- [`decode(samples, n)`, :38](src/fsk.h#L38): feed microphone audio in any chunk size. It returns soft values once a whole frame has been demodulated, otherwise `nullopt`.
 - The receiver's state is hidden behind a pointer ([`:40-41`](src/fsk.h#L40-L41)), so the header doesn't expose it.
 
-### Transmit path: [`fsk::encode` (fsk.cpp:350)](src/fsk.cpp#L350)
+### Transmit path: [`fsk::encode` (fsk.cpp:364)](src/fsk.cpp#L364)
 
 ```
 generateSoundData( prependPreamble( bitsToTones(data, nbits) ) )
@@ -208,11 +211,23 @@ It runs as a small state machine on one buffer: [`push` (:162)](src/fsk.cpp#L162
 1. Measures the tone powers for each symbol and divides by `eq_` ([`:298`](src/fsk.cpp#L298)).
 2. Picks the strongest tone and Gray-decodes it.
 3. If the strongest tone holds under 35% of the energy for 3 symbols in a row, the frame is dropped and search resumes ([`:305`](src/fsk.cpp#L305)).
-4. After `frameSymbols_` symbols, it marks the frame ready and goes back to searching ([`:314`](src/fsk.cpp#L314)).
+4. Emits 4 soft values per symbol, one per bit ([`:314-325`](src/fsk.cpp#L314-L325); see below).
+5. After `frameSymbols_` symbols, it marks the frame ready and goes back to searching ([`:329`](src/fsk.cpp#L329)).
 
-**Housekeeping:** [`trim` (:322)](src/fsk.cpp#L322) throws away audio nothing can still refer to. [`reportLevel` (:334)](src/fsk.cpp#L334) prints the input level and best preamble score each second with `-v`.
+**Housekeeping:** [`trim` (:336)](src/fsk.cpp#L336) throws away audio nothing can still refer to. [`reportLevel` (:348)](src/fsk.cpp#L348) prints the input level and best preamble score each second with `-v`.
 
-**Soft values are hard for now.** [`:311`](src/fsk.cpp#L311) emits 0.0 or 1.0 per bit. The Viterbi decoder accepts that, but it gains a lot once these become real confidences taken from the tone powers in `p`.
+**Soft values** ([`:314-325`](src/fsk.cpp#L314-L325)). `p` is each tone's equalized share of the symbol's energy, and it sums to 1. Each tone stands for one 4-bit value, `grayDecode(t)`. So for each bit:
+
+```
+P(bit = 1) = Σ p[t]  over the tones t whose grayDecode(t) has that bit set
+```
+
+- **Strong symbol:** one tone holds most of the energy, so every bit comes out near 0 or 1.
+- **Weak symbol:** energy is spread out, so the bits drift toward 0.5 and Viterbi trusts them less.
+- **Two neighbouring tones nearly tied:** because of Gray coding they differ in one bit. Only that bit goes toward 0.5; the other three stay confident.
+- **Silent window:** all four bits are 0.5.
+
+**Old hard bits kept for comparison.** Building with `-DDIAL_UP_HARD_BITS` emits 0.0 / 1.0 from the strongest tone instead ([`:310-313`](src/fsk.cpp#L310-L313)).
 
 **Connects to:**
 - **Down:** `convolutional::encode` → `fsk::encode` → `speaker::encode`.
@@ -252,11 +267,37 @@ It runs as a small state machine on one buffer: [`push` (:162)](src/fsk.cpp#L162
 2. `convolutional::decode(soft)` → 336 bytes.
 3. `interleaver::decode` → `reed_solomon::decode` → `data_link_layer::decode` → `Frame`, or dropped.
 
+## Comparing decoder variants
+
+Two compile-time switches restore the older behaviour. Neither is defined by default, and they are independent, so all four combinations can be built:
+
+| Macro | File | Defined = old behaviour | Default = new behaviour |
+|---|---|---|---|
+| `DIAL_UP_HARD_BITS` | `fsk.cpp` | 0.0 / 1.0 from the strongest tone | P(bit = 1) from the tone energy shares |
+| `DIAL_UP_L1_METRIC` | `convolutional.cpp` | cost `|s − bit|` | cost `−log P(bit)` |
+
+Set one with `-DDIAL_UP_HARD_BITS` on the compiler command line, or `target_compile_definitions(dial_up PRIVATE DIAL_UP_HARD_BITS)` in CMake.
+
+**Simulated results (2026-11-19).** Setup:
+- 8 frames of 336 random bytes (21,504 data bits) through `convolutional` → `fsk` → white noise → `fsk` → `convolutional`;
+- light noise on the preamble, so every frame synced;
+- the "signal lost" check turned off in a test copy of `fsk.cpp`, since otherwise it drops every frame before any bit goes wrong.
+
+| Noise RMS on data | soft + −log P | soft + L1 | hard + either |
+|---|---|---|---|
+| 1.5 | 0 | 0 | 4 |
+| 2.0 | 116 | 108 | 476 |
+| 2.5 | 3925 | 3910 | 4456 |
+| ≥ 3.0 | ~50% (decoder overwhelmed) | ~50% | ~50% |
+
+Soft values cut errors about 4× where it matters. The two metrics are within noise of each other: the energy shares aren't calibrated probabilities, so −log P has nothing extra to work with yet. Real-room recordings may differ; the switches exist to check that.
+
 ## Open items
 
 - `reed_solomon` and `interleaver` are passthrough stubs.
 - **Frame size is hard-coded twice.** The 5388-bit size depends on the Reed–Solomon output size, and both the sender's `nbits` and the receiver's `frameBits` must match it. Nothing in the code computes it yet.
-- `fsk` gives hard bits ([`fsk.cpp:311`](src/fsk.cpp#L311)); real soft values are the next big gain in noise tolerance.
+- **Soft values aren't calibrated probabilities.** Energy shares are softer than the true likelihoods, which is likely why the −log P metric hasn't beaten the old metric yet (see below).
+- **The "signal lost" check fires before decoding fails.** In white-noise tests, the 3-weak-symbols-in-a-row check (`kMinSymbolConf`, [`fsk.cpp:35`](src/fsk.cpp#L35)) drops frames at noise levels the decoder could still mostly handle.
 - **Legacy leftovers:**
   - `modem.h`'s header comment and `crc8` ([`:1`](src/modem.h#L1), [`:37-49`](src/modem.h#L37-L49)) still describe the old rx/tx frame format.
   - `rx.cpp` / `tx.cpp` in the repo root no longer build, since `modem.h` moved to `src/`.

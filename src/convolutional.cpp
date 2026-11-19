@@ -1,5 +1,6 @@
 #include "convolutional.h"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <limits>
@@ -30,6 +31,16 @@ Branch step(int state, int bit) {
 
 int getBit(const std::vector<uint8_t>& d, size_t i) { return (d[i / 8] >> (7 - i % 8)) & 1; }
 void setBit(std::vector<uint8_t>& d, size_t i)     { d[i / 8] |= static_cast<uint8_t>(0x80 >> (i % 8)); }
+
+#ifndef DIAL_UP_L1_METRIC
+// Branch cost of one coded bit: -log P(bit == expected), where s = P(bit = 1).
+// Summed along a path this is -log of the path's probability, so Viterbi picks
+// the most likely path. The clamp keeps a sure contradiction finite (~13.8).
+float bitCost(float s, int expected) {
+    const float p = expected ? s : 1.0f - s;
+    return -std::log(std::max(p, 1e-6f));
+}
+#endif
 
 }  // namespace
 
@@ -74,7 +85,12 @@ std::vector<uint8_t> convolutional::decode(const std::vector<float>& soft) {
             if (metric[s] == kInf) continue;
             for (int bit = 0; bit < 2; ++bit) {
                 const Branch b = step(s, bit);
+#ifdef DIAL_UP_L1_METRIC
+                // Old: distance between the soft value and the expected bit.
                 const float cost = std::fabs(s1 - b.out1) + std::fabs(s2 - b.out2);
+#else
+                const float cost = bitCost(s1, b.out1) + bitCost(s2, b.out2);
+#endif
                 const float m = metric[s] + cost;
                 if (m < next[b.next]) {
                     next[b.next] = m;

@@ -298,7 +298,6 @@ private:
         for (int t = 0; t < kTones; ++t) raw[t] /= eq_[t];
         const Powers p = toFractions(raw);
         const int g = argmax(p);
-        const int value = grayDecode(g);
         ++nextSym_;
 
         weakRun_ = (p[g] < kMinSymbolConf) ? weakRun_ + 1 : 0;
@@ -308,8 +307,23 @@ private:
             return true;
         }
 
-        // TODO: real soft values from the tone powers p; for now hard bits (0.0 / 1.0).
+#ifdef DIAL_UP_HARD_BITS
+        // Old: hard bits (0.0 / 1.0) from the strongest tone only.
+        const int value = grayDecode(g);
         for (int b = kBitsPerSymbol - 1; b >= 0; --b) soft_.push_back(float((value >> b) & 1));
+#else
+        // Soft bits: P(bit = 1) = total energy share of every tone whose
+        // (Gray-decoded) value has that bit set. p sums to 1, so this is in [0, 1].
+        // A silent window (p all zero) gives 0.5 = no information.
+        double total = 0.0;
+        for (float v : p) total += v;
+        for (int b = kBitsPerSymbol - 1; b >= 0; --b) {
+            double ones = 0.0;
+            for (int t = 0; t < kTones; ++t)
+                if ((grayDecode(t) >> b) & 1) ones += p[t];
+            soft_.push_back(total > 0.0 ? static_cast<float>(ones / total) : 0.5f);
+        }
+#endif
 
         if (static_cast<size_t>(nextSym_) == frameSymbols_) {
             ready_ = true;
