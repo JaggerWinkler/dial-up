@@ -26,7 +26,7 @@ public:
      *              modem::kBitsPerSymbol, the last symbol is padded with 0s.
      * @return Mono float samples at modem::kSampleRate, faded in and out.
      */
-    std::vector<float> encode(const std::vector<uint8_t>& data, size_t nbits);
+    static std::vector<float> encode(const std::vector<uint8_t>& data, size_t nbits);
 
     /**
      * @brief Up the stack: feed microphone samples in any chunk size. Searches

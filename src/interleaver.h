@@ -14,7 +14,7 @@ public:
      * @return The same bytes, interleaved.
      * @throws std::length_error if data's size isn't a multiple of the codeword count.
      */
-    std::vector<uint8_t> encode(const std::vector<uint8_t>& data);
+    static std::vector<uint8_t> encode(const std::vector<uint8_t>& data);
 
     /**
      * @brief Up the stack: undo encode, restoring the original byte order.
@@ -22,7 +22,7 @@ public:
      * @return The bytes in their original order, ready for Reed-Solomon decoding.
      * @throws std::length_error if data's size isn't a multiple of the codeword count.
      */
-    std::vector<uint8_t> decode(const std::vector<uint8_t>& data);
+    static std::vector<uint8_t> decode(const std::vector<uint8_t>& data);
 };
 
 #endif // DIAL_UP_INTERLEAVER_H

@@ -1,6 +1,7 @@
 #include "convolutional.h"
 
 #include <array>
+#include <bit>
 #include <cmath>
 #include <limits>
 
@@ -16,7 +17,7 @@ constexpr int kRegMask   = (1 << kConstraintLength) - 1;   // 7-bit shift regist
 constexpr int kStates    = 1 << (kConstraintLength - 1);   // 64 trellis states
 constexpr int kStateMask = kStates - 1;
 
-int parity(int x) { return __builtin_parity(static_cast<unsigned>(x)); }
+int parity(int x) { return std::popcount(static_cast<unsigned>(x)) & 1; }
 
 // The shift register holds the current input bit in bit 0 and the 6 previous
 // bits above it. The trellis state is the low 6 bits: the history the next
@@ -57,7 +58,7 @@ std::vector<uint8_t> convolutional::decode(const std::vector<float>& soft) {
     const size_t dataBits = steps - kTailBits;
 
     constexpr float kInf = std::numeric_limits<float>::infinity();
-    std::array<float, kStates> metric;
+    std::array<float, kStates> metric{};
     metric.fill(kInf);
     metric[0] = 0.0f;                              // encoder starts in state 0
 
@@ -66,7 +67,7 @@ std::vector<uint8_t> convolutional::decode(const std::vector<float>& soft) {
 
     for (size_t t = 0; t < steps; ++t) {
         const float s1 = soft[2 * t], s2 = soft[2 * t + 1];
-        std::array<float, kStates> next;
+        std::array<float, kStates> next{};
         next.fill(kInf);
 
         // Add-compare-select.
@@ -74,7 +75,7 @@ std::vector<uint8_t> convolutional::decode(const std::vector<float>& soft) {
             if (metric[s] == kInf) continue;
             for (int bit = 0; bit < 2; ++bit) {
                 const Branch b = step(s, bit);
-                const float cost = std::fabs(s1 - b.out1) + std::fabs(s2 - b.out2);
+                const float cost = std::fabs(s1 - static_cast<float>(b.out1)) + std::fabs(s2 - static_cast<float>(b.out2));
                 const float m = metric[s] + cost;
                 if (m < next[b.next]) {
                     next[b.next] = m;

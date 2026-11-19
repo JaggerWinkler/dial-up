@@ -23,7 +23,7 @@ public:
      *        default output device. Blocks until playback finishes.
      * @return false on an audio error.
      */
-    bool encode(const std::vector<float>& samples);
+    [[nodiscard]] bool encode(const std::vector<float>& samples) const;
 
     /**
      * @brief Up the stack: read the next chunk from the default input device.
