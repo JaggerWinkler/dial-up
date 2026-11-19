@@ -74,7 +74,7 @@ Powers toFractions(Powers p) {
 Powers fractions(const float* x) { return toFractions(tonePowers(x)); }
 
 int argmax(const Powers& p) {
-    return static_cast<int>(std::max_element(p.begin(), p.end()) - p.begin());
+    return static_cast<int>(std::ranges::max_element(p) - p.begin());
 }
 
 int grayEncode(int n) { return n ^ (n >> 1); }
@@ -116,7 +116,7 @@ std::vector<int> prependPreamble(const std::vector<int>& dataTones) {
 // happen outside the symbols and never attenuate a symbol the receiver analyses.
 std::vector<float> generateSoundData(const std::vector<int>& tones) {
     const int n_symbols = static_cast<int>(tones.size());
-    const int fade = static_cast<int>(kFadeSeconds * kSampleRate);
+    constexpr int fade = static_cast<int>(kFadeSeconds * kSampleRate);
     const int num_samples = kSym * n_symbols + 2 * fade;
     std::vector<float> out(static_cast<size_t>(num_samples));
 
@@ -134,7 +134,7 @@ std::vector<float> generateSoundData(const std::vector<int>& tones) {
 
     // Raised-cosine fade in/out on the extensions.
     for (int i = 0; i < fade; ++i) {
-        const float g = static_cast<float>(0.5 - 0.5 * std::cos(kTwoPi / 2 * i / fade));
+        const auto g = static_cast<float>(0.5 - 0.5 * std::cos(kTwoPi / 2 * i / fade));
         out[i] *= g;
         out[num_samples - 1 - i] *= g;
     }
@@ -161,7 +161,7 @@ public:
 
     std::optional<std::vector<float>> push(const float* x, size_t n) {
         buf_.insert(buf_.end(), x, x + n);
-        for (size_t i = 0; i < n; ++i) levelSum_ += double(x[i]) * x[i];
+        for (size_t i = 0; i < n; ++i) levelSum_ += static_cast<double>(x[i]) * x[i];
         levelCount_ += n;
 
         while (state_ == State::Search ? stepSearch() : stepDecode()) {}
@@ -181,10 +181,10 @@ private:
     std::vector<float> buf_;
     long long base_ = 0;  // absolute sample index of buf_[0]
 
-    bool avail(long long pos, long long len) const {
+    [[nodiscard]] bool avail(long long pos, long long len) const {
         return pos >= base_ && pos + len <= base_ + static_cast<long long>(buf_.size());
     }
-    const float* at(long long pos) const { return buf_.data() + (pos - base_); }
+    [[nodiscard]] const float* at(long long pos) const { return buf_.data() + (pos - base_); }
 
     // --- search state --------------------------------------------------------
     State state_ = State::Search;
@@ -212,7 +212,7 @@ private:
     size_t levelCount_ = 0;
     double maxScoreThisSecond_ = 0.0;
 
-    double scoreAt(long long pos) const {
+    [[nodiscard]] double scoreAt(long long pos) const {
         double sc = 0.0;
         for (int k = 0; k < kPreambleLen; ++k) sc += fractions(at(pos + static_cast<long long>(k) * kSym))[kPreamble[k]];
         return sc;
@@ -254,7 +254,7 @@ private:
             if (sc > bestSc) { bestSc = sc; bestPos = p; }
         }
         std::fprintf(stderr, "[%7.3f s] preamble detected (score %.1f/16)\n",
-                     double(bestPos) / kSampleRate, bestSc);
+                     static_cast<double>(bestPos) / kSampleRate, bestSc);
 
         // Channel equalization: the preamble sends each tone exactly once, so
         // its power in that slot is how strongly the speaker/room/mic pass that
@@ -347,7 +347,7 @@ private:
 
     void reportLevel() {
         if (verbose_) {
-            const double rms = std::sqrt(levelSum_ / double(levelCount_));
+            const double rms = std::sqrt(levelSum_ / static_cast<double>(levelCount_));
             const double db = rms > 0 ? 20.0 * std::log10(rms) : -999.0;
             std::fprintf(stderr, "level %6.1f dBFS   best preamble score %4.1f/16%s\n", db,
                          maxScoreThisSecond_, state_ == State::Decode ? "   (decoding)" : "");

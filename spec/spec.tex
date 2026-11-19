@@ -188,6 +188,8 @@ parity bytes and can correct up to $(n - k)/2$ byte errors per block. This proje
 parity bytes, forming two RS(168, 136) codewords (336 bytes in total) that can each correct up to 16 corrupted bytes. Because Reed-Solomon counts errors per byte rather than per bit, it is well suited to correcting the short bursts of errors left by the Viterbi decoder and those caused by sudden noise events, in conjunction with 
 the interleaving step.
 
+The code uses the field GF($2^8$) with primitive polynomial \texttt{0x11D}, primitive element $\alpha = 2$, and generator polynomial $g(x) = \prod_{i=1}^{32} (x - \alpha^i)$. Each codeword is the 136 data bytes followed by the 32 parity bytes. Reed-Solomon encoding and decoding are provided by Brian Armstrong's \href{https://github.com/quiet/libcorrect}{libcorrect} library, used under the BSD 3-Clause License.
+
 \subsection{Interleaving}
 Noise errors over sound are likely to be very concentrated in time (ie a door closing). Reed-Solomon is a block code, and can only correct a limited number of errors per block. 
 By distributing noise errors over multiple blocks, the Reed-Solomon code is able to correct more errors. Interleaving is the process of rearranging the order of the bytes in a frame, so that consecutive bytes are not adjacent in the transmitted frame. Data is 

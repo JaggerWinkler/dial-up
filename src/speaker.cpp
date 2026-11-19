@@ -27,8 +27,8 @@ bool check(PaError err, const char* what) {
     return true;
 }
 
-uint16_t le16(const uint8_t* p) { return uint16_t(p[0] | (p[1] << 8)); }
-uint32_t le32(const uint8_t* p) { return uint32_t(p[0] | (p[1] << 8) | (p[2] << 16) | (uint32_t(p[3]) << 24)); }
+uint16_t le16(const uint8_t* p) { return static_cast<uint16_t>(p[0] | (p[1] << 8)); }
+uint32_t le32(const uint8_t* p) { return static_cast<uint32_t>(p[0] | (p[1] << 8) | (p[2] << 16) | (static_cast<uint32_t>(p[3]) << 24)); }
 
 }  // namespace
 
@@ -44,7 +44,7 @@ speaker::~speaker() {
     if (initialized_) Pa_Terminate();
 }
 
-bool speaker::encode(const std::vector<float>& samples) {
+bool speaker::encode(const std::vector<float>& samples) const {
     if (!initialized_) return false;
 
     // [lead silence][samples][tail silence], interleaved stereo
@@ -141,7 +141,7 @@ bool speaker::readWav(const char* path, std::vector<float>& out, uint32_t& rate)
     std::ifstream f(path, std::ios::binary);
     if (!f) { std::fprintf(stderr, "cannot open %s\n", path); return false; }
     std::vector<uint8_t> d((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-    if (d.size() < 12 || std::memcmp(d.data(), "RIFF", 4) || std::memcmp(d.data() + 8, "WAVE", 4)) {
+    if (d.size() < 12 || std::memcmp(d.data(), "RIFF", 4) != 0 || std::memcmp(d.data() + 8, "WAVE", 4) != 0) {
         std::fprintf(stderr, "%s is not a WAV file\n", path);
         return false;
     }
@@ -163,11 +163,11 @@ bool speaker::readWav(const char* path, std::vector<float>& out, uint32_t& rate)
     }
     if (!data || channels == 0) { std::fprintf(stderr, "%s: missing fmt or data chunk\n", path); return false; }
 
-    const size_t frameBytes = size_t(channels) * bits / 8;
+    const size_t frameBytes = static_cast<size_t>(channels) * bits / 8;
     const size_t frames = dataLen / frameBytes;
     out.resize(frames);
     if (fmt == 1 && bits == 16) {
-        for (size_t i = 0; i < frames; ++i) out[i] = int16_t(le16(data + i * frameBytes)) / 32768.0f;
+        for (size_t i = 0; i < frames; ++i) out[i] = static_cast<float>(static_cast<int16_t>(le16(data + i * frameBytes))) / 32768.0f;
     } else if (fmt == 3 && bits == 32) {
         for (size_t i = 0; i < frames; ++i) std::memcpy(&out[i], data + i * frameBytes, 4);
     } else {

@@ -29,7 +29,7 @@ public:
      * @return The frame bytes (17-272 bytes), ready for the physical layer.
      * @throws std::length_error if the payload is longer than 255 bytes.
      */
-    std::vector<uint8_t> encode(const MAC_Address& dst_mac, const std::vector<uint8_t>& payload) const;
+    [[nodiscard]] std::vector<uint8_t> encode(const MAC_Address& dst_mac, const std::vector<uint8_t>& payload) const;
 
     /**
      * @brief Check CRC and unwrap a frame received from the physical layer.
@@ -37,7 +37,7 @@ public:
      * @return The frame's payload and addresses, or nullopt if the frame is
      *         too short, fails the CRC check, or is addressed to another device.
      */
-    std::optional<Frame> decode(const std::vector<uint8_t>& bitstream) const;
+    [[nodiscard]] std::optional<Frame> decode(const std::vector<uint8_t>& bitstream) const;
 
 private:
     MAC_Address this_mac;

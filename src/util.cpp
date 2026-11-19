@@ -5,7 +5,9 @@
 
 #include "util.h"
 
+#include <algorithm>
 #include <cstring>
+
 
 #if defined(_WIN32)
     #include <winsock2.h>
@@ -81,10 +83,9 @@ std::optional<MAC_Address> linkAddress(const ifaddrs* i) {
 
 // Containers, VMs, VPNs and Apple's peer-to-peer links, never the main NIC.
 bool isVirtual(const std::string& name) {
-    for (const char* prefix : {"docker", "br-", "veth", "virbr", "vmnet", "vboxnet",
-                               "tun", "tap", "utun", "bridge", "awdl", "llw"})
-        if (name.starts_with(prefix)) return true;
-    return false;
+    constexpr const char* kPrefixes[] = {"docker", "br-", "veth", "virbr", "vmnet", "vboxnet",
+                                         "tun", "tap", "utun", "bridge", "awdl", "llw"};
+    return std::ranges::any_of(kPrefixes, [&](const char* prefix) { return name.starts_with(prefix); });
 }
 
 // Name of the interface the machine is most likely using: up, running, not

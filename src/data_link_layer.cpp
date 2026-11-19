@@ -73,6 +73,7 @@ std::optional<Frame> data_link_layer::decode(const std::vector<uint8_t>& bitstre
     if (bitstream.size() < crc_pos + kCrcLen) {
         return std::nullopt;
     }
+    const auto crc_it = bitstream.begin() + static_cast<std::ptrdiff_t>(crc_pos);
 
     // Ethernet FCS is stored least significant byte first
     const uint32_t received =  static_cast<uint32_t>(bitstream[crc_pos])            |
@@ -80,7 +81,7 @@ std::optional<Frame> data_link_layer::decode(const std::vector<uint8_t>& bitstre
                               (static_cast<uint32_t>(bitstream[crc_pos + 2]) << 16) |
                               (static_cast<uint32_t>(bitstream[crc_pos + 3]) << 24);
     // if CRC doesnt match, drop
-    if (calculate_CRC({bitstream.begin(), bitstream.begin() + crc_pos}) != received) {
+    if (calculate_CRC({bitstream.begin(), crc_it}) != received) {
         return std::nullopt;
     }
 
@@ -93,7 +94,7 @@ std::optional<Frame> data_link_layer::decode(const std::vector<uint8_t>& bitstre
         return std::nullopt;
     }
 
-    frame.payload.assign(bitstream.begin() + kHeaderLen, bitstream.begin() + crc_pos);
+    frame.payload.assign(bitstream.begin() + kHeaderLen, crc_it);
     return frame;
 }
 
