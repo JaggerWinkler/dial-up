@@ -8,7 +8,7 @@ namespace modem {
 
 constexpr int kSampleRate = 48000;                 // audio sample rate for playback and capture [samples/s = Hz]
 
-constexpr int kWindow        = 240;                // Goertzel analysis window length [samples] (= 10 ms)
+constexpr int kWindow        = 480;                // Goertzel analysis window length [samples] (= 10 ms)
 constexpr int kSymbolSamples = kWindow;            // length of one FSK symbol [samples]
 
 constexpr int kBitsPerSymbol = 4;                  // data bits carried by each symbol [bits/symbol]

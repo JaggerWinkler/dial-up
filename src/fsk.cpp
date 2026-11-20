@@ -23,7 +23,7 @@ constexpr int    kHop            = kSym / kHopsPerSymbol;   // search step
 constexpr double kTwoPi          = 6.283185307179586;
 static_assert(kSym % kHopsPerSymbol == 0, "search hop must divide the symbol");
 
-constexpr double kAmp         = 0.5;    // speakers are weaker near 20 kHz
+constexpr double kAmp         = 0.75;    // speakers are weaker near 20 kHz
 constexpr double kFadeSeconds = 0.020;  // slow enough that switching on/off isn't heard
 
 // Preamble score = sum over the 16 slots of the fraction of in-band energy on
@@ -32,7 +32,7 @@ constexpr double kDetectThreshold = 9.0;
 
 // A data symbol whose strongest tone holds less than this fraction of the
 // energy is treated as "no signal". Several in a row abort the frame.
-constexpr float kMinSymbolConf  = 0.35f;
+constexpr float kMinSymbolConf  = 0.20f;
 constexpr int   kMaxWeakSymbols = 3;
 
 using Powers = std::array<float, kTones>;
