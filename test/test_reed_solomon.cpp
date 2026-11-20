@@ -1,3 +1,12 @@
+// File Name:     test_reed_solomon.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing Reed-Solomon padding, the 16-byte-per-codeword correction limit,
+// and bad input
+
 // Reed-Solomon: padding, the 16-byte-per-codeword correction limit, bad input.
 #include "check.h"
 #include "src/reed_solomon.h"

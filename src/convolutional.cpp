@@ -1,3 +1,12 @@
+// File Name:     convolutional.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: rate-1/2, K=7 convolutional encoding (generators 171/133 octal) and
+// soft-decision Viterbi decoding of FSK soft bits
+
 #include "convolutional.h"
 
 #include <algorithm>

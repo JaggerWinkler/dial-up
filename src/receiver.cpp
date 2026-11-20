@@ -1,3 +1,12 @@
+// File Name:     receiver.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: the receive loop: demodulating, decoding up the stack, printing text
+// messages, and handing file chunks to the file module
+
 #include "receiver.h"
 
 #include "console.h"

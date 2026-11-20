@@ -1,6 +1,11 @@
-//
-// Created by Jagger Winkler on 11/6/26.
-//
+// File Name:     util.h
+// Author:        Jagger Winkler
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: shared types (MAC addresses, frames) and looking up this machine's MAC
+// address
 
 #ifndef DIAL_UP_UTIL_H
 #define DIAL_UP_UTIL_H

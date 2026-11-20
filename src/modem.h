@@ -1,3 +1,12 @@
+// File Name:     modem.h
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: FSK modem parameters (sample rate, tone plan, symbol timing, preamble)
+// shared by the transmitter and receiver
+
 // modem.h — parameters shared by tx.cpp and rx.cpp. Both must agree exactly.
 #pragma once
 

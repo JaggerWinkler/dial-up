@@ -1,3 +1,12 @@
+// File Name:     check.h
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: a minimal test harness (CHECK / CHECK_EQ and a summary) plus shared test
+// helpers
+
 // check.h — a minimal test harness: CHECK / CHECK_EQ count failures, finish()
 // prints a summary and gives main its exit code. Plus shared test helpers.
 #ifndef DIAL_UP_TEST_CHECK_H

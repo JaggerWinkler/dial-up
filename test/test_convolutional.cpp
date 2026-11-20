@@ -1,3 +1,12 @@
+// File Name:     test_convolutional.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing convolutional code sizes, known encoder output, and Viterbi round
+// trips with clean, erroneous, and erased soft values
+
 // Convolutional code: sizes, known encoder output, and Viterbi round trips
 // with clean, erroneous and erased soft values.
 #include "check.h"

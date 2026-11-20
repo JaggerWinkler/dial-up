@@ -1,3 +1,11 @@
+// File Name:     speaker.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: PortAudio playback and capture, plus reading and writing WAV files
+
 #include "speaker.h"
 
 #include "modem.h"

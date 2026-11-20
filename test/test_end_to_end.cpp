@@ -1,3 +1,12 @@
+// File Name:     test_end_to_end.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing one text frame sent over the air from speaker to microphone and
+// decoded up the full stack
+
 // Over the air: "alice" plays one text frame on the speaker while "bob", on a
 // background thread, listens on the microphone and decodes it up the full
 // stack. Needs speakers on, a mic, mic permission, and a reasonably quiet room.

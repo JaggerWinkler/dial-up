@@ -1,3 +1,12 @@
+// File Name:     console.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: implementation of the locked console output functions so lines from the
+// send and receive threads never interleave
+
 #include "console.h"
 
 #include <cstdio>

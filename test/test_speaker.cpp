@@ -1,3 +1,11 @@
+// File Name:     test_speaker.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing WAV file reading on files written by the test
+
 // speaker::readWav on WAV files written by the test (no audio hardware).
 #include "check.h"
 #include "src/speaker.h"

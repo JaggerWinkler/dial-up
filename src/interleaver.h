@@ -1,3 +1,12 @@
+// File Name:     interleaver.h
+// Author:        Jagger Winkler
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: interface for the block interleaver between Reed-Solomon and the
+// convolutional code
+
 #ifndef DIAL_UP_INTERLEAVER_H
 #define DIAL_UP_INTERLEAVER_H
 

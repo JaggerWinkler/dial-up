@@ -1,3 +1,12 @@
+// File Name:     test_speaker_audio.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing the audio hardware by playing a tone and checking the microphone
+// records it
+
 // speaker hardware: play a tone on the speaker, record it with the mic, and
 // check the tone is there. Needs speakers on, a mic, and mic permission.
 #include "check.h"

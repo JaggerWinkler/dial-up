@@ -1,3 +1,11 @@
+// File Name:     test_fsk.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: testing the FSK modulator and demodulator on in-memory samples
+
 // FSK modulator / demodulator on in-memory samples (no audio hardware).
 #include "check.h"
 #include "src/fsk.h"

@@ -1,6 +1,11 @@
-//
-// Created by Jagger Winkler on 11/6/26.
-//
+// File Name:     data_link_layer.h
+// Author:        Jagger Winkler
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: interface for the data link layer: framing payloads with destination and
+// source MAC addresses, a length byte, and a CRC-32
 
 #ifndef DIAL_UP_DATA_LINK_LAYER_H
 #define DIAL_UP_DATA_LINK_LAYER_H

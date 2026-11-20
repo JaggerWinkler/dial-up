@@ -1,7 +1,12 @@
-//
-// Created by Jagger Winkler on 11/16/26.
+// File Name:     util.cpp
+// Author:        Jagger Winkler
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: finding this machine's hardware MAC address on macOS, Linux, and Windows
+
 // disclosure note: I wrote this code for MacOS, and had Claude Opus 5.5 extend it to linux and windows
-//
 
 #include "util.h"
 

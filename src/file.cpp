@@ -1,3 +1,12 @@
+// File Name:     file.cpp
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: chunking outgoing files, tracking incoming transfers, and saving
+// reassembled files to disk
+
 #include "file.h"
 
 #include "console.h"

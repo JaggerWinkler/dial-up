@@ -1,3 +1,12 @@
+// File Name:     file.h
+// Author:        Arthur Ufongene
+// Course:        CS60: Computer Networks
+// Assignment:    Lab 4: Physical Layer
+// Date:          November 2026
+
+// Description: interface for splitting files into chunk messages for sending and
+// reassembling received chunks into files
+
 #ifndef DIAL_UP_FILE_H
 #define DIAL_UP_FILE_H
 
