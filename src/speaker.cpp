@@ -13,7 +13,6 @@
 namespace {
 
 constexpr double        kSampleRate  = modem::kSampleRate;
-constexpr unsigned long kFrames      = 256;    // output frames per buffer
 constexpr size_t        kChunk       = 1200;   // input chunk, 25 ms
 constexpr double        kLeadSeconds = 0.10;   // silence before the frame (device start-up)
 constexpr double        kTailSeconds = 0.25;   // silence after it (CoreAudio can drop the last
@@ -54,16 +53,19 @@ bool speaker::encode(const std::vector<float>& samples) const {
     buf.insert(buf.end(), static_cast<size_t>(kTailSeconds * kSampleRate) * 2, 0.0f);
     const unsigned long frames = buf.size() / 2;
 
+    const PaDeviceIndex dev = Pa_GetDefaultOutputDevice();
+    if (dev == paNoDevice) { std::fprintf(stderr, "no output device\n"); return false; }
+    const PaDeviceInfo* info = Pa_GetDeviceInfo(dev);
+    PaStreamParameters out{};
+    out.device           = dev;
+    out.channelCount     = 2;    // stereo
+    out.sampleFormat     = paFloat32;
+    out.suggestedLatency = std::max(0.1, info->defaultHighOutputLatency);
+
     PaStream* stream = nullptr;
-    PaError err = Pa_OpenDefaultStream(&stream,
-                                       0,          // no input
-                                       2,          // stereo output
-                                       paFloat32,
-                                       kSampleRate,
-                                       kFrames,
-                                       nullptr,    // blocking mode
-                                       nullptr);
-    if (!check(err, "Pa_OpenDefaultStream")) return false;
+    PaError err = Pa_OpenStream(&stream, nullptr, &out, kSampleRate, paFramesPerBufferUnspecified,
+                                paClipOff, nullptr, nullptr);   // blocking mode
+    if (!check(err, "Pa_OpenStream")) return false;
 
     if (!check(Pa_StartStream(stream), "Pa_StartStream")) {
         Pa_CloseStream(stream);
