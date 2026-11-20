@@ -23,8 +23,9 @@ with nothing else to install. Run it from a terminal:
   SmartScreen warns about an unknown publisher, click *More info → Run anyway*.
 - **macOS:** the binary is unsigned, so clear the download quarantine first:
   `xattr -d com.apple.quarantine dial_up-macos && chmod +x dial_up-macos && ./dial_up-macos`
-- **Linux:** `chmod +x dial_up-linux && ./dial_up-linux` (needs ALSA, which every desktop
-  distro has).
+- **Linux:** pick the file matching `uname -m`: `dial_up-linux-x86_64` for Intel/AMD,
+  `dial_up-linux-arm64` for `aarch64` (Raspberry Pi, Linux VMs on Apple Silicon Macs). Then
+  `chmod +x dial_up-linux-* && ./dial_up-linux-*` (needs ALSA, which every desktop distro has).
 
 
 ## Requirements (building from source)

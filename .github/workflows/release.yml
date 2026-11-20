@@ -31,7 +31,11 @@ jobs:
             binary: build/dial_up
             configure: -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
           - os: ubuntu-22.04   # older glibc, so the binary runs on more distros
-            asset: dial_up-linux
+            asset: dial_up-linux-x86_64
+            binary: build/dial_up
+            configure: -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc"
+          - os: ubuntu-22.04-arm   # ARM64: Raspberry Pi, Linux VMs on Apple Silicon Macs
+            asset: dial_up-linux-arm64
             binary: build/dial_up
             configure: -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-static-libstdc++ -static-libgcc"
     runs-on: ${{ matrix.os }}
