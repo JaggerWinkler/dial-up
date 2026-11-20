@@ -25,7 +25,8 @@ add_library(correct_rs STATIC
 set_target_properties(correct_rs PROPERTIES C_STANDARD 99)
 target_include_directories(correct_rs PUBLIC ${libcorrect_SOURCE_DIR}/include)
 
-add_executable(dial_up main.cpp
+# Everything except main.cpp, so the app and the tests share one build.
+add_library(dial_up_core STATIC
         src/util.h
         src/util.cpp
         src/modem.h
@@ -53,9 +54,15 @@ add_executable(dial_up main.cpp
 
 find_package(Threads REQUIRED)
 
-target_include_directories(dial_up PRIVATE ${PORTAUDIO_INCLUDE_DIR})
-target_link_libraries(dial_up PRIVATE ${PORTAUDIO_LIBRARY} correct_rs Threads::Threads)
+target_include_directories(dial_up_core PUBLIC ${PORTAUDIO_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(dial_up_core PUBLIC ${PORTAUDIO_LIBRARY} correct_rs Threads::Threads)
+
+add_executable(dial_up main.cpp)
+target_link_libraries(dial_up PRIVATE dial_up_core)
 
 if(WIN32)
-    target_link_libraries(dial_up PRIVATE iphlpapi)
+    target_link_libraries(dial_up_core PUBLIC iphlpapi)
 endif()
+
+enable_testing()
+add_subdirectory(test)

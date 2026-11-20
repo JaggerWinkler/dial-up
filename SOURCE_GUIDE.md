@@ -405,6 +405,14 @@ Set one with `-DDIAL_UP_HARD_BITS` on the compiler command line, or `target_comp
 
 Soft values cut errors about 4× where it matters. The two metrics are within noise of each other: the energy shares aren't calibrated probabilities, so −log P has nothing extra to work with yet. Real-room recordings may differ; the switches exist to check that.
 
+## Build and tests
+
+- **One library, two kinds of consumer.** `CMakeLists.txt` builds every `src/*.cpp` into one static library, `dial_up_core`, which links PortAudio, `correct_rs` and Threads. `dial_up` is just `main.cpp` linked against it, and every test in `test/` links the same library.
+- **Test harness.** [`test/check.h`](test/check.h) holds `CHECK` / `CHECK_EQ` and a seeded RNG, so every run sees the same data.
+- **Labels.** Tests labelled `unit` need no hardware. The two labelled `audio` (`test_speaker_audio`, `test_end_to_end`) use the real speaker and microphone.
+- **No hard-coded parameters.** The tests read every value from `modem.h`, `reed_solomon.h` and `message.h`, so changing the tone plan or frame size doesn't break them.
+- Commands for running them are in the README.
+
 ## Open items
 
 - **No retransmission.** A file chunk lost to noise loses the whole file; the receiver reports it as incomplete after ~41 s.
