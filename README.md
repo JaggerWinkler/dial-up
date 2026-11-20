@@ -13,16 +13,31 @@ speaker ← FSK demodulator (soft bits) ← Viterbi ← deinterleaver ← Reed�
 The full design is in [`spec/spec.pdf`](spec/spec.pdf). A file-by-file walkthrough of the
 code is in [`SOURCE_GUIDE.md`](SOURCE_GUIDE.md).
 
-## Requirements
+## Download
 
-- CMake ≥ 4.3 and a C++26 compiler (Xcode's clang on macOS)
-- PortAudio
+Prebuilt binaries for Windows, macOS (Apple Silicon and Intel) and Linux are on the
+[Releases](https://github.com/JaggerWinkler/dial-up/releases) page. Each is a single file
+with nothing else to install. Run it from a terminal:
+
+- **Windows:** double-click `dial_up-windows.exe`, or run it from PowerShell. If
+  SmartScreen warns about an unknown publisher, click *More info → Run anyway*.
+- **macOS:** the binary is unsigned, so clear the download quarantine first:
+  `xattr -d com.apple.quarantine dial_up-macos && chmod +x dial_up-macos && ./dial_up-macos`
+- **Linux:** `chmod +x dial_up-linux && ./dial_up-linux` (needs ALSA, which every desktop
+  distro has).
+
+
+## Requirements (building from source)
+
+- CMake ≥ 3.25 and a C++20 compiler (Xcode's clang on macOS, MSVC on Windows)
+- Linux only: ALSA headers (`sudo apt install libasound2-dev`)
 
 ```sh
-brew install cmake portaudio
+brew install cmake
 ```
 
-libcorrect (for Reed–Solomon) is downloaded automatically the first time CMake runs.
+PortAudio and libcorrect (for Reed–Solomon) are downloaded and linked statically the
+first time CMake runs.
 
 ## Build
 

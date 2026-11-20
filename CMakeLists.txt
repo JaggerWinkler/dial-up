@@ -1,16 +1,37 @@
-cmake_minimum_required(VERSION 4.3)
-project(dial_up)
+cmake_minimum_required(VERSION 3.25)
+project(dial_up C CXX)
 
-set(CMAKE_CXX_STANDARD 26)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_path(PORTAUDIO_INCLUDE_DIR portaudio.h)
-find_library(PORTAUDIO_LIBRARY portaudio)
+# Release builds are self-contained single files: on Windows the C/C++ runtime
+# is linked statically (no VC++ redistributable needed), and on macOS
+# -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" makes a universal binary.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+
+include(FetchContent)
+
+# --- PortAudio (static) -----------------------------------------------------
+# Built from source and linked statically so the executable doesn't need
+# PortAudio installed. Linux needs the ALSA headers (libasound2-dev).
+# PortAudio 19.7's CMakeLists predates CMake 4, which refuses minimums < 3.5.
+set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
+set(PA_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+set(PA_BUILD_STATIC ON  CACHE BOOL "" FORCE)
+set(PA_USE_JACK     OFF CACHE BOOL "" FORCE)   # ALSA only on Linux: no libjack dependency
+set(PA_USE_ASIO     OFF CACHE BOOL "" FORCE)   # ASIO needs Steinberg's SDK
+set(PA_DLL_LINK_WITH_STATIC_RUNTIME ON CACHE BOOL "" FORCE)
+FetchContent_Declare(portaudio
+        GIT_REPOSITORY https://github.com/PortAudio/portaudio.git
+        GIT_TAG        v19.7.0
+        GIT_SHALLOW    TRUE)
+FetchContent_MakeAvailable(portaudio)
+unset(CMAKE_POLICY_VERSION_MINIMUM)
 
 # --- libcorrect (Reed-Solomon only) -----------------------------------------
 # Download the source, but don't run libcorrect's own CMakeLists: it forces
 # -fsanitize=address in Debug builds and builds its tests/tools. SOURCE_SUBDIR
 # points at a folder with no CMakeLists.txt, so FetchContent only downloads.
-include(FetchContent)
 FetchContent_Declare(libcorrect
         GIT_REPOSITORY https://github.com/quiet/libcorrect.git
         GIT_TAG        ee82e6673a806dfdf0a969b975ab36596ecc5401  # master, Feb 2026
@@ -54,8 +75,8 @@ add_library(dial_up_core STATIC
 
 find_package(Threads REQUIRED)
 
-target_include_directories(dial_up_core PUBLIC ${PORTAUDIO_INCLUDE_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(dial_up_core PUBLIC ${PORTAUDIO_LIBRARY} correct_rs Threads::Threads)
+target_include_directories(dial_up_core PUBLIC ${portaudio_SOURCE_DIR}/include ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(dial_up_core PUBLIC portaudio_static correct_rs Threads::Threads)
 
 add_executable(dial_up main.cpp)
 target_link_libraries(dial_up PRIVATE dial_up_core)
