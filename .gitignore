@@ -34,3 +34,6 @@ build/
 
 **/received
 Makefile
+
+# Prebuilt binaries (CI builds these)
+dial_up-*
