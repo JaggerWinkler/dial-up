@@ -1,7 +1,5 @@
 // File Name:     data_link_layer.h
 // Author:        Jagger Winkler
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: interface for the data link layer: framing payloads with destination and

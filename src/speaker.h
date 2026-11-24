@@ -1,7 +1,5 @@
 // File Name:     speaker.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: interface for audio I/O through PortAudio: playing samples on the speaker

@@ -1,7 +1,5 @@
 // File Name:     console.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: thread-safe console output shared by the REPL and the receive thread,

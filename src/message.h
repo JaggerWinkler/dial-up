@@ -1,7 +1,5 @@
 // File Name:     message.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: application-level message formats (text and file chunks) and frame

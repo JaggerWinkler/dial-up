@@ -10,6 +10,8 @@ data link (MACs, CRC-32) → Reed–Solomon → interleaver → convolutional (r
 speaker ← FSK demodulator (soft bits) ← Viterbi ← deinterleaver ← Reed–Solomon ← data link ← mic
 ```
 
+By Jagger Winkler and Arthur Ufongene.
+
 The full design is in [`spec/spec.pdf`](spec/spec.pdf). A file-by-file walkthrough of the
 code is in [`SOURCE_GUIDE.md`](SOURCE_GUIDE.md).
 
@@ -30,12 +32,15 @@ with nothing else to install. Run it from a terminal:
 
 ## Requirements (building from source)
 
-- CMake ≥ 3.25 and a C++20 compiler (Xcode's clang on macOS, MSVC on Windows)
-- Linux only: ALSA headers (`sudo apt install libasound2-dev`)
+- CMake ≥ 3.25 and a C++20 compiler
+- Linux only: ALSA headers
 
-```sh
-brew install cmake
-```
+| Platform | Install |
+|---|---|
+| macOS | `xcode-select --install` (clang), then `brew install cmake` |
+| Debian / Ubuntu | `sudo apt install build-essential cmake libasound2-dev` |
+| Fedora | `sudo dnf install gcc-c++ cmake alsa-lib-devel` |
+| Windows | Visual Studio 2022 with the *Desktop development with C++* workload (includes MSVC and CMake) |
 
 PortAudio and libcorrect (for Reed–Solomon) are downloaded and linked statically the
 first time CMake runs.
@@ -84,7 +89,7 @@ current directory, and shows a `>` prompt:
 - **Received text** is printed as `[sender MAC] text`.
 - **Received files** are saved to `received/`, and the program prints
   `received <name> from <MAC>`.
-- **Speed:** each frame takes a few seconds of air time, and sending blocks the prompt
+- **Speed:** each frame takes about 14 seconds of air time, and sending blocks the prompt
   until it finishes. A file is sent as one frame per ~249 bytes.
 
 ### Try it on one computer

@@ -1,7 +1,5 @@
 // File Name:     fsk.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: interface for the 16-FSK modulator and demodulator, including preamble

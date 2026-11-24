@@ -1,7 +1,5 @@
 // File Name:     reed_solomon.cpp
 // Author:        Jagger Winkler
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: padding frames, encoding them into Reed-Solomon codewords, and correcting

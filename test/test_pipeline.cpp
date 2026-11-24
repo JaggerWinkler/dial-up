@@ -1,7 +1,5 @@
 // File Name:     test_pipeline.cpp
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: testing the whole stack from payload to audio samples and back, with

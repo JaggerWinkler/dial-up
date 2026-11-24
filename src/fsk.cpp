@@ -1,7 +1,5 @@
 // File Name:     fsk.cpp
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: turning coded bits into near-ultrasonic tones, and synchronizing on the

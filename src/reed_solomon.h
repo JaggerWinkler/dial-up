@@ -1,7 +1,5 @@
 // File Name:     reed_solomon.h
 // Author:        Jagger Winkler
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: interface for the shortened RS(255, 223) Reed-Solomon outer code built

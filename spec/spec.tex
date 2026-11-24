@@ -35,7 +35,7 @@ The physical layer is responsible for modulating data into sound and demodulatin
 while the data link layer is responsible for framing, addressing, and error detection, similar to its role in the Ethernet protocol.
 
 Dial-Up is designed to automatically let any two devices with a microphone and speaker to exchange data without pairing, shared specific hardware,
-or physical networking. A receiver contintuosly listens for a preamble, and when it detects one, it transforms the incoming sound waves into a bitstream
+or physical networking. A receiver continuously listens for a preamble, and when it detects one, it transforms the incoming sound waves into a bitstream,
 decodes the bitstream, and delivers the payload to the network layer. This project was written using C++, and is designed to work on Linux, MacOS, and Windows.
 
 \section{Purpose}
@@ -129,21 +129,20 @@ The data link layer then appends a CRC to the end of the frame, which is used to
 layer for transmission.
 
 \subsection{Layer 1 Transmitter}
-The physical layer is a more computationally and conceptually heavy layer. The physical layer first encodes the frame using a Reed-Solomon code. Next, the bitstream is interleaved, where bytes are rearranged to make the
-data more resilient to burst errors. The interleaved bitstream is then convolutionally encoded, 
-which is a type of error-correcting code that adds redundancy to the data. The purpose of this becomes clearer during the decode, where a Viterbi decoder is 
-used to decode the convolutionally encoded data. Next, the bitstream is modulated using a frequency-shift keying (FSK) modulation scheme, where a 0 is represented by 
-a lower frequency tone and a 1 is represented by a higher frequency tone. Finally, a preamble is appended to the front of the frame, which is a known sequence of bits
-that is used to synchronize the receiver to the upcoming transmission frame.
+The physical layer is a more computationally and conceptually heavy layer. The physical layer first encodes the frame using a Reed-Solomon code. Next, the bytes are interleaved, rearranging them to make the
+data more resilient to burst errors. The interleaved bitstream is then convolutionally encoded,
+which is a type of error-correcting code that adds redundancy to the data. The purpose of this becomes clearer during the decode, where a Viterbi decoder is
+used to decode the convolutionally encoded data. Next, the bitstream is modulated using 16-ary frequency-shift keying (16-FSK), where each group of four bits selects one of sixteen tones.
+Finally, a preamble, a fixed sequence of tones known to both peers, is sent in front of the data so the receiver can detect the frame and synchronize to it.
 
-This generated audio file is then passed to the speaker, which plays a noise for the receiver to pick up.
+The resulting audio signal is then passed to the speaker, which plays it for the receiver to pick up.
 \subsection{Layer 1 Receiver}
 The physical layer receiver first detects the preamble and synchronizes to the incoming frame. Once synchronized, the receiver demodulates the FSK signal back into a bitstream.
 The demodulated bitstream is then passed through a Viterbi decoder, which decodes the convolutionally encoded data. Next, the bitstream is deinterleaved, 
-reversing the interleaving process performed by the transmitter. Finally, the Reed-Solomon decoder corrects any errors in the received frame, and passes it to the data link layer. 
+reversing the interleaving process performed by the transmitter. Finally, the Reed-Solomon decoder corrects any errors in the received frame, and passes it to the data link layer. If any block has more errors than Reed-Solomon can correct, the frame is dropped. 
 
 \subsection{Layer 2 Receiver}
-The data link layer receiver is responsible for checking the CRC of the received frame. If the CRC check fails, the frame is dropped. If the CRC check passes, the data link layer 
+The data link layer receiver is responsible for checking the CRC of the received frame. If the CRC check fails, the frame is dropped. Frames addressed to another device are also dropped. Otherwise, the data link layer 
 extracts the payload from the frame, stripping the header and delivers it to the network layer.
 
 \section{Specifics}
@@ -175,6 +174,25 @@ Total & 17--272 & \\
 \label{tab:frame-format}
 \end{table}
 
+\subsection{Application Messages}
+The bundled application sends two kinds of messages, distinguished by the first byte of the payload:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+Message & Payload layout \\
+\midrule
+Text & \texttt{0x00}, then up to 254 bytes of text \\
+File chunk & \texttt{0x01}, transfer ID (1), chunk index (2), chunk count (2), then data \\
+\bottomrule
+\end{tabular}
+\caption{Application payload formats (multi-byte fields are big-endian)}
+\label{tab:app-messages}
+\end{table}
+
+A file is split into up to 65535 chunks, each sent in its own frame. Chunk 0 additionally carries the file name (a length byte followed by up to 64 bytes of name) before its data; every other chunk carries up to 249 bytes of data. The receiver collects chunks by sender and transfer ID, accepts them in any order, and saves the file once every chunk has arrived. A transfer that receives no new chunk for three frame durations is discarded.
+
 \subsection{Cyclic Redundancy Check (CRC)}
 The CRC is an error-detecting code that acts as a last stage error checking mechanism.
 The protocol uses the 32-bit CRC defined in the Ethernet specification, with the polynomial $x^{32} + x^{26} + x^{23} + x^{22}
@@ -188,29 +206,54 @@ parity bytes and can correct up to $(n - k)/2$ byte errors per block. This proje
 parity bytes, forming two RS(168, 136) codewords (336 bytes in total) that can each correct up to 16 corrupted bytes. Because Reed-Solomon counts errors per byte rather than per bit, it is well suited to correcting the short bursts of errors left by the Viterbi decoder and those caused by sudden noise events, in conjunction with 
 the interleaving step.
 
-The code uses the field GF($2^8$) with primitive polynomial \texttt{0x11D}, primitive element $\alpha = 2$, and generator polynomial $g(x) = \prod_{i=1}^{32} (x - \alpha^i)$. Each codeword is the 136 data bytes followed by the 32 parity bytes. Reed-Solomon encoding and decoding are provided by Brian Armstrong's \href{https://github.com/quiet/libcorrect}{libcorrect} library, used under the BSD 3-Clause License.
+The code uses the field GF($2^8$) with primitive polynomial \texttt{0x11D}, primitive element $\alpha = 2$, and generator polynomial $g(x) = \prod_{i=1}^{32} (x - \alpha^i)$. Each codeword is the 136 data bytes followed by the 32 parity bytes. On receive, the padding is passed up with the frame, and the data link layer ignores everything after the CRC, whose position it finds from the length byte. Reed-Solomon encoding and decoding are provided by Brian Armstrong's \href{https://github.com/quiet/libcorrect}{libcorrect} library, used under the BSD 3-Clause License.
 
 \subsection{Interleaving}
-Noise errors over sound are likely to be very concentrated in time (ie a door closing). Reed-Solomon is a block code, and can only correct a limited number of errors per block. 
-By distributing noise errors over multiple blocks, the Reed-Solomon code is able to correct more errors. Interleaving is the process of rearranging the order of the bytes in a frame, so that consecutive bytes are not adjacent in the transmitted frame. Data is 
-written into a matrix row-wise, and read out column-wise. 
+Noise errors over sound are likely to be very concentrated in time (e.g.\ a door closing). Reed-Solomon is a block code, and can only correct a limited number of errors per block.
+By distributing noise errors over multiple blocks, the Reed-Solomon code is able to correct more errors. The interleaver rearranges the 336 Reed-Solomon output bytes so that bytes adjacent in a codeword are not adjacent in the transmitted frame.
+The bytes are written row-wise into a matrix with one row per codeword (2 rows of 168 bytes) and read out column-wise, so consecutive transmitted bytes alternate between the two codewords and a burst of errors is split evenly across them.
 
 \subsection{Convolutional Encode + Viterbi Decode}
-Convolutional coding operates on a continuous bitstream rather than fixed blocks (like Reid-Solomon). An encoder shift register of constraint length $K = 7$ combines current and prior bits via XOR operations to generate redundant outputs, ensuring single corrupted bits do not destroy individual information symbols.
+Convolutional coding operates on a continuous bitstream rather than fixed blocks (like Reed-Solomon). An encoder shift register of constraint length $K = 7$ combines current and prior bits via XOR operations to generate redundant outputs, ensuring single corrupted bits do not destroy individual information symbols.
 
-This project implements an industry-standard rate-$1/2$ code ($K = 7$, generator polynomials $171_8$ and $133_8$), doubling the transmitted bit count. Each transmission frame terminates with $K - 1 = 6$ zero-valued tail bits to flush the register and return the encoder to a known all-zero state.
+This project implements an industry-standard rate-$1/2$ code ($K = 7$, generator polynomials $171_8$ and $133_8$), doubling the transmitted bit count. Bytes are fed to the encoder most significant bit first. Each transmission frame terminates with $K - 1 = 6$ zero-valued tail bits to flush the register and return the encoder to a known all-zero state. A frame therefore carries $(336 \times 8 + 6) \times 2 = 5388$ coded bits.
 
-The receiver recovers the sequence using the Viterbi algorithm across a $64$ state trellis. At each stage, the decoder executes an add-compare-select step to preserve only the lowest-cost path entering each state, followed by a traceback routine to reconstruct the transmitted bitstream.
+The receiver recovers the sequence using the Viterbi algorithm across a $64$ state trellis, starting and ending in the all-zero state. At each stage, the decoder executes an add-compare-select step to preserve only the lowest-cost path entering each state, followed by a traceback routine to reconstruct the transmitted bitstream.
 
-Decoding relies on soft decisions, giving much greater tolerance to noise. Any resulting decoding failure bursts are subsequently dispersed by a deinterleaver and corrected by an outer Reed-Solomon code.
+Decoding relies on soft decisions: the demodulator supplies, for every coded bit, an estimate $s$ of the probability that the bit is a 1. The cost of a branch expecting bit $b$ is $-\log P(b)$, i.e.\ $-\log s$ for a 1 and $-\log(1 - s)$ for a 0, with probabilities clamped at $10^{-6}$, so the lowest-cost path is the most likely one. This gives much greater tolerance to noise than hard decisions. Any resulting decoding failure bursts are subsequently dispersed by a deinterleaver and corrected by the outer Reed-Solomon code.
 
 \subsection{Frequency-Shift Keying (FSK) Modulation}
-At this point in the process, the data is a stream of bits. The physical layer modulates the bitstream into an audio signal using frequency-shift keying (FSK). In FSK, a 0 is represented by a lower frequency tone and a 1 is represented by a higher frequency tone. 
-This project uses a Q-FSK modulation scheme with frequencies ranging from 17 kHz to 19 kHz. The value of Q and the frequencies are preset for two peers before they start communicating, but can be changed between runs to increase data rate or improve signal quality. The modulated audio signal is then passed to the speaker for transmission. The high frequencies are chosen to avoid the audible range of human hearing and mitigate noise from sound reverberations off of walls.
+At this point in the process, the data is a stream of bits. The physical layer modulates the bitstream into an audio signal using 16-FSK. The bitstream is read four bits at a time, most significant bit first, and each 4-bit value $n$ is Gray-coded ($n \oplus (n \gg 1)$) to select one of 16 tones, so that confusing two neighbouring tones corrupts only one bit. Tone $i$ has frequency $18000 + 200\,i$~Hz, giving tones from 18.0~kHz to 21.0~kHz. The high frequencies are chosen to be inaudible to most adults and to mitigate noise from everyday sounds and their reverberations off of walls.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Sample rate & 48\,000 samples/s \\
+Symbol length & 480 samples (10 ms) \\
+Bits per symbol & 4 (16 tones) \\
+Tone frequencies & $18000 + 200\,i$ Hz, $i = 0, \dots, 15$ \\
+Raw bit rate & 400 bit/s \\
+\bottomrule
+\end{tabular}
+\caption{Modulation parameters}
+\label{tab:modulation}
+\end{table}
+
+Every tone completes a whole number of cycles in one 480-sample symbol, and the tones are spaced two 100~Hz analysis bins apart, so they do not leak into each other at the receiver. The signal is generated with continuous phase across symbol boundaries at an amplitude of 0.75, with 20~ms raised-cosine fades before the first and after the last symbol. The speaker adds 100~ms of silence before the signal and 250~ms after it. These parameters are fixed at compile time, and both peers must be built with the same values.
+
+The receiver measures the energy of each of the 16 tones in every symbol window using the Goertzel algorithm, divides it by that tone's channel gain (see Preamble), and normalizes the result to fractions of the total in-band energy. The soft value for each bit is the total fraction held by tones whose Gray-decoded value has that bit set. If the strongest tone holds less than 20\% of the energy in three consecutive symbols, the signal is considered lost and the frame is dropped.
+
+A frame consists of 16 preamble symbols and $\lceil 5388 / 4 \rceil = 1347$ data symbols, or 13.63~s of tones; with the fades and silence, one frame takes about 14~s to send.
 
 \subsection{Preamble}
-The preamble is a known sequence of bits that is prepended to the frame. The preamble is used to synchronize the receiver to the incoming frame. The preamble is a 32-bit sequence of 
-alternating 1s and 0s, followed by a 16-bit sequence of all 1s. The preamble is transmitted at the same frequency as the data, and is used to detect the start of the frame and to synchronize the receiver's clock to the incoming signal.
+The preamble is 16 symbols long and uses each of the 16 tones exactly once, in the order 2, 8, 9, 12, 4, 14, 10, 15, 13, 7, 6, 3, 11, 1, 5, 0 (a Costas array, so shifted copies of the pattern in time or frequency line up poorly with the original).
+
+The receiver searches for the preamble every 60 samples (one eighth of a symbol). For each candidate start, it sums, over the 16 preamble slots, the fraction of in-band energy on the expected tone; a perfect match scores about 16 and noise about 1. Once a score exceeds 9, the receiver keeps searching for one more symbol to find the peak, refines the start to within 8 samples, and begins demodulating data at the end of the preamble.
+
+Because the preamble sends every tone once, the receiver also uses it to measure how strongly the speaker, room, and microphone pass each tone. These gains (floored at 25\% of the mean, so a faint tone is boosted by at most 6~dB) are divided out of every data symbol, so a resonant tone cannot win symbols that are not its own.
 
 \section{Acknowledgements}
 Figures were generated with the help of Claude Opus 5.5, by describing every component of the figure in detail. The figure was then refined and polished by the authors.

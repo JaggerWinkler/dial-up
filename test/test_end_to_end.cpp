@@ -1,7 +1,5 @@
 // File Name:     test_end_to_end.cpp
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: testing one text frame sent over the air from speaker to microphone and

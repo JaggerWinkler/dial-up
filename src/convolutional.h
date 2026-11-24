@@ -1,7 +1,5 @@
 // File Name:     convolutional.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: interface for the rate-1/2, K=7 convolutional encoder and soft-decision

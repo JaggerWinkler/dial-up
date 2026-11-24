@@ -1,7 +1,5 @@
 // File Name:     test_speaker.cpp
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: testing WAV file reading on files written by the test

@@ -1,7 +1,5 @@
 // File Name:     data_link_layer.cpp
 // Author:        Jagger Winkler
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: building and parsing data link frames, computing the Ethernet CRC-32, and

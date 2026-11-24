@@ -1,13 +1,11 @@
 // File Name:     modem.h
 // Author:        Arthur Ufongene
-// Course:        CS60: Computer Networks
-// Assignment:    Lab 4: Physical Layer
 // Date:          November 2026
 
 // Description: FSK modem parameters (sample rate, tone plan, symbol timing, preamble)
 // shared by the transmitter and receiver
 
-// modem.h — parameters shared by tx.cpp and rx.cpp. Both must agree exactly.
+// Both peers must be built with the same values.
 #pragma once
 
 #include <cstddef>
@@ -37,24 +35,10 @@ static_assert(kBaseFreq % kBinHz == 0 && kToneSpacing % kBinHz == 0,
 static_assert(kToneSpacing >= kBinHz, "tones need at least 2 bins of separation");
 
 static_assert(kBaseFreq + kToneSpacing * (kTones - 1) <= 21600,
-              "stay below the ~20 kHz cutoff of 44.1 kHz resamplers/anti-alias filters");
+              "highest tone must stay below the ~22 kHz Nyquist limit of 44.1 kHz audio paths");
 
 constexpr int kPreambleLen = 16;                   // length of the preamble [symbols]
 // preamble sent before every frame for detection and sync [tone indices, 0 .. kTones-1]
 constexpr int kPreamble[kPreambleLen] ={2, 8, 9, 12, 4, 14, 10, 15, 13, 7, 6, 3, 11, 1, 5, 0};
-
-// Frame after the preamble: [length 1..255][payload][crc8 over length+payload].
-// Each byte → two symbols, high nibble first, nibble n on tone n ^ (n >> 1).
-// CRC-8 checksum of d[0..n), poly 0x07, init 0x00 [n: bytes; returns: 1 byte]
-inline uint8_t crc8(const uint8_t* d, size_t n) {
-    uint8_t crc = 0;
-    for (size_t i = 0; i < n; ++i) {
-        crc ^= d[i];
-        for (int b = 0; b < 8; ++b)
-            crc = (crc & 0x80) ? static_cast<uint8_t>((crc << 1) ^ 0x07)
-                               : static_cast<uint8_t>(crc << 1);
-    }
-    return crc;
-}
 
 }  // namespace modem
